@@ -29,44 +29,6 @@ export const DocViewer = createComponent(() => {
       const docToLoad = currentPage.value;
       console.log("[DocViewer] Loading doc:", docToLoad);
 
-      try {
-        // Try serverless function first (SSR support)
-        if (typeof window !== "undefined") {
-          try {
-            console.log(
-              "[DocViewer] Attempting SSR from serverless function...",
-            );
-            const response = await fetch(
-              `/.netlify/functions/render?doc=${docToLoad}`,
-              { signal: AbortSignal.timeout(3000) },
-            );
-            console.log("[DocViewer] Response status:", response.status);
-
-            if (response.ok) {
-              const data = await response.json();
-              console.log("[DocViewer] SSR successful, rendering...");
-              if (data.content) {
-                content.value = marked.parse(data.content) as string;
-                isLoading.value = false;
-                window.scrollTo(0, 0);
-                return;
-              }
-            }
-          } catch (fetchErr) {
-            console.warn(
-              "[DocViewer] Serverless function error, using client-side:",
-              fetchErr,
-            );
-          }
-        }
-      } catch (err) {
-        console.warn(
-          "[DocViewer] SSR unavailable, falling back to client-side:",
-          err,
-        );
-      }
-
-      // Fallback to client-side rendering
       console.log("[DocViewer] Using client-side rendering for:", docToLoad);
       const path = `../../../docs/v1/${docToLoad}`;
       const mod = docs[path] as { default: string } | undefined;

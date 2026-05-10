@@ -4,11 +4,7 @@ base = "."
 
 [build]
 command = "bun run build"
-functions = "netlify/functions"
 publish = "dist"
-
-[functions]
-node_bundler = "esbuild"
 
 # Environment variables
 [context.production]
