@@ -11,7 +11,8 @@
   "devDependencies": {
     "@types/bun": "latest",
     "@types/marked": "^6.0.0",
-    "@types/prismjs": "^1.26.6"
+    "@types/prismjs": "^1.26.6",
+    "@netlify/functions": "^2.0.0"
   },
   "peerDependencies": {
     "typescript": "^6.0.3"

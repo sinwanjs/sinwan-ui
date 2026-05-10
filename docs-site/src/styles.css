@@ -302,6 +302,22 @@ a:hover {
   display: flex;
   justify-content: center;
   animation: fadeIn 0.4s ease-out;
+  position: relative;
+}
+
+.loading-indicator {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 1rem 1.5rem;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  backdrop-filter: blur(12px);
+  z-index: 10;
 }
 
 @keyframes fadeIn {

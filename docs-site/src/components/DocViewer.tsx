@@ -20,22 +20,46 @@ const docs = import.meta.glob("../../../docs/v1/*.md", {
 export const DocViewer = createComponent(() => {
   const currentPage = inject(CurrentPageKey)!;
   const content = signal("");
+  const isLoading = signal(false);
 
   // Load content when currentPage changes
   effect(() => {
-    const path = `../../../docs/v1/${currentPage.value}`;
-    const mod = docs[path] as { default: string } | undefined;
-    if (mod) {
-      content.value = marked.parse(mod.default) as string;
-    } else {
-      content.value = "<h1>404</h1><p>Document not found.</p>";
-    }
-    // Scroll to top
-    window.scrollTo(0, 0);
+    isLoading.value = true;
+    const loadDoc = async () => {
+      try {
+        // Try serverless function first (SSR support)
+        if (typeof window !== "undefined" && import.meta.env.PROD) {
+          const response = await fetch(`/.netlify/functions/render?doc=${currentPage.value}`);
+          if (response.ok) {
+            const data = await response.json();
+            content.value = marked.parse(data.content) as string;
+            isLoading.value = false;
+            window.scrollTo(0, 0);
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn("Serverless function unavailable, falling back to client-side:", err);
+      }
+
+      // Fallback to client-side rendering
+      const path = `../../../docs/v1/${currentPage.value}`;
+      const mod = docs[path] as { default: string } | undefined;
+      if (mod) {
+        content.value = marked.parse(mod.default) as string;
+      } else {
+        content.value = "<h1>404</h1><p>Document not found.</p>";
+      }
+      isLoading.value = false;
+      window.scrollTo(0, 0);
+    };
+
+    loadDoc();
   });
 
   return (
     <div class="content-viewer">
+      {() => isLoading.value && <div class="loading-indicator">Loading...</div>}
       <div
         class="doc-body"
         ref={(el) => {
