@@ -44,7 +44,10 @@ export const DocViewer = createComponent(() => {
               }
             }
           } catch (fetchErr) {
-            console.warn("Serverless function error, using client-side:", fetchErr);
+            console.warn(
+              "Serverless function error, using client-side:",
+              fetchErr,
+            );
           }
         }
       } catch (err) {

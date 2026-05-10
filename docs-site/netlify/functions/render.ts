@@ -41,10 +41,9 @@ export default async (req: Request, context: Context) => {
     );
   } catch (error) {
     console.error("Error loading doc:", error);
-    return new Response(
-      JSON.stringify({ error: "Document not found", doc }),
-      { status: 404, headers: { "Content-Type": "application/json" } },
-    );
+    return new Response(JSON.stringify({ error: "Document not found", doc }), {
+      status: 404,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 };
-
