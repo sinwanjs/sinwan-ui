@@ -17,18 +17,25 @@ export const CurrentPageKey: InjectionKey<Signal<string>> =
 export const SidebarOpenKey: InjectionKey<Signal<boolean>> =
   Symbol("sidebar-open");
 
-export const App = createComponent(() => {
+export interface AppProps {
+  initialPage?: string;
+  initialContent?: string;
+}
+
+export const App = createComponent<AppProps>(({ initialPage, initialContent } = {}) => {
   const theme = signal<Theme>(
-    window.matchMedia("(prefers-color-scheme: dark)").matches
+    typeof window !== "undefined" && window.matchMedia("(prefers-color-scheme: dark)").matches
       ? "dark"
       : "light",
   );
-  const currentPage = signal("00-philosophy.md");
+  const currentPage = signal(initialPage || "00-philosophy.md");
   const sidebarOpen = signal(false);
+  const initialContentSignal = signal(initialContent || "");
 
   provide(ThemeKey, theme);
   provide(CurrentPageKey, currentPage);
   provide(SidebarOpenKey, sidebarOpen);
+  provide(Symbol("initialContent"), initialContentSignal);
 
   onMounted(() => {
     const root = document.documentElement;

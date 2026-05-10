@@ -1,89 +1,90 @@
 import { readFile } from "fs/promises";
-import { join, resolve } from "path";
+import { resolve } from "path";
 import type { Context } from "@netlify/functions";
 
 export default async (req: Request, context: Context) => {
   const url = new URL(req.url);
   const doc = url.searchParams.get("doc") || "00-philosophy.md";
 
-  console.log("[render] Fetching doc:", doc);
+  console.log("[ssr] Rendering doc:", doc);
 
-  // Validate doc parameter to prevent directory traversal
+  // Validate doc parameter
   if (
     !doc.match(/^[0-9a-zA-Z-]+\.md$/) &&
     doc !== "README.md" &&
     doc !== "CHANGELOG.md"
   ) {
-    return new Response(
-      JSON.stringify({ error: "Invalid document requested" }),
-      { status: 400, headers: { "Content-Type": "application/json" } },
-    );
+    return new Response("Invalid document requested", { status: 400 });
   }
 
   try {
-    // Try multiple path strategies for Netlify Functions environment
+    // Try multiple path strategies
     const possiblePaths = [
-      // Strategy 1: From netlify/functions relative to repo root
       resolve(__dirname, "..", "..", "..", "docs", "v1", doc),
-      // Strategy 2: Using LAMBDA_TASK_ROOT env var (if available)
       process.env.LAMBDA_TASK_ROOT
         ? resolve(process.env.LAMBDA_TASK_ROOT, "..", "..", "docs", "v1", doc)
         : null,
-      // Strategy 3: Using process.cwd()
       resolve(process.cwd(), "..", "..", "docs", "v1", doc),
     ].filter((p): p is string => p !== null);
 
     let content: string | null = null;
-    let successPath = "";
 
     for (const docPath of possiblePaths) {
       try {
-        console.log("[render] Trying path:", docPath);
+        console.log("[ssr] Trying:", docPath);
         content = await readFile(docPath, "utf-8");
-        successPath = docPath;
-        console.log("[render] Successfully loaded from:", docPath);
         break;
-      } catch (e) {
-        console.log("[render] Failed:", docPath);
+      } catch {
         continue;
       }
     }
 
     if (!content) {
-      console.error("[render] All paths failed for doc:", doc);
-      return new Response(
-        JSON.stringify({
-          error: "Document not found",
-          doc,
-          attempts: possiblePaths,
-        }),
-        {
-          status: 404,
-          headers: { "Content-Type": "application/json" },
-        },
-      );
+      console.error("[ssr] Not found:", doc);
+      return new Response("Document not found", { status: 404 });
     }
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        doc,
-        content,
-        loadedFrom: successPath,
-      }),
-      {
-        status: 200,
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control": "public, max-age=3600",
-        },
+    // Extract title from markdown
+    const titleMatch = content.match(/^#\s+(.+)$/m);
+    const docTitle = titleMatch ? titleMatch[1] : doc;
+
+    // Escape content for HTML attribute
+    const escapedContent = content
+      .replace(/&/g, "&amp;")
+      .replace(/"/g, "&quot;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+
+    // Return SSR HTML with hydration data
+    const html = `<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>${docTitle} - Sinwan Documentation</title>
+    <meta name="description" content="${docTitle} - Sinwan reactive UI library documentation" />
+    <meta property="og:title" content="${docTitle} - Sinwan" />
+    <meta property="og:type" content="website" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script type="module" crossorigin src="/assets/index-BHBhxa4d.js"><\\/script>
+    <link rel="stylesheet" crossorigin href="/assets/index-Bl-z6hkM.css">
+  </head>
+  <body>
+    <div id="app" data-initial-page="${doc}" data-initial-content="${escapedContent}"></div>
+  </body>
+</html>`;
+
+    return new Response(html, {
+      headers: {
+        "Content-Type": "text/html; charset=utf-8",
+        "Cache-Control": "public, max-age=3600",
       },
-    );
+    });
   } catch (error) {
-    console.error("[render] Error:", error);
-    return new Response(
-      JSON.stringify({ error: "Server error", details: String(error) }),
-      { status: 500, headers: { "Content-Type": "application/json" } },
-    );
+    console.error("[ssr] Error:", error);
+    return new Response("Server error", { status: 500 });
   }
 };
+
