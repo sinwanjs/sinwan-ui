@@ -28,23 +28,27 @@ export const DocViewer = createComponent(() => {
     const loadDoc = async () => {
       try {
         // Try serverless function first (SSR support)
-        if (typeof window !== "undefined" && import.meta.env.PROD) {
-          const response = await fetch(
-            `/.netlify/functions/render?doc=${currentPage.value}`,
-          );
-          if (response.ok) {
-            const data = await response.json();
-            content.value = marked.parse(data.content) as string;
-            isLoading.value = false;
-            window.scrollTo(0, 0);
-            return;
+        if (typeof window !== "undefined") {
+          try {
+            const response = await fetch(
+              `/.netlify/functions/render?doc=${currentPage.value}`,
+              { signal: AbortSignal.timeout(3000) },
+            );
+            if (response.ok) {
+              const data = await response.json();
+              if (data.content) {
+                content.value = marked.parse(data.content) as string;
+                isLoading.value = false;
+                window.scrollTo(0, 0);
+                return;
+              }
+            }
+          } catch (fetchErr) {
+            console.warn("Serverless function error, using client-side:", fetchErr);
           }
         }
       } catch (err) {
-        console.warn(
-          "Serverless function unavailable, falling back to client-side:",
-          err,
-        );
+        console.warn("SSR unavailable, falling back to client-side:", err);
       }
 
       // Fallback to client-side rendering
