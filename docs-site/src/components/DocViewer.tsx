@@ -94,12 +94,17 @@ export const DocViewer = createComponent(() => {
     <div class="content-viewer">
       <div class="doc-toolbar">
         <button
-          class="copy-button"
+          class={() =>
+            `copy-button ${copyLabel.value === "Copied" ? "is-copied" : ""}`
+          }
           type="button"
           onClick={copyPageContent}
           disabled={() => !rawContent.value}
           aria-label="Copy the current page content"
         >
+          <span class="copy-button-icon" aria-hidden="true">
+            {() => (copyLabel.value === "Copied" ? "✓" : "⧉")}
+          </span>
           {() => copyLabel.value}
         </button>
       </div>
