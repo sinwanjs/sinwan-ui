@@ -377,6 +377,8 @@ import { Virtual } from "sinwan";
 
 `<Virtual>` renders only the items visible inside a fixed-height scrollable container. It computes a window from `scrollTop`, `itemHeight`, `containerHeight`, and `overscan`, mounts only the rows in that window, and reuses keyed rows as the user scrolls. The total scrollable height is set automatically (`items.length * itemHeight`). Items are positioned absolutely at their correct `top` offset inside a relative content wrapper.
 
+**Overscan at scroll boundaries.** `overscan` is added to both sides of the viewport, but clamped to the list bounds. At `scrollTop = 0` the window starts at index `0`, so overscan only applies below the viewport. For example, with `containerHeight={50}`, `itemHeight={16}`, and `overscan={3}`, the viewport fits 4 items and the rendered window is 7 items (`0` through `6`). Once you scroll down, the buffer applies symmetrically (e.g. `startIndex = 3`, `endIndex = 10`).
+
 | Prop              | Type                                           | Required | Default | Description                                   |
 | ----------------- | ---------------------------------------------- | -------- | ------- | --------------------------------------------- |
 | `each`            | `Reactive<readonly T[]>`                       | Yes      | —       | Source array (signal, computed, or getter)    |

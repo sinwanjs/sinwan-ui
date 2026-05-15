@@ -1,5 +1,7 @@
+import { Virtual } from "sinwan";
 import { Show } from "sinwan";
 import { signal, cc, For, onUpdated } from "sinwan";
+import { Getter } from "sinwan/react-client";
 import { useState } from "sinwan/react-client";
 import { useEffect } from "sinwan/react-client";
 
@@ -16,7 +18,7 @@ export type CountriesResponse = {
   countries: Country[];
 };
 
-const Test = cc<{ count: () => number }>(({ count }) => {
+const Test = cc<{ count: Getter }>(({ count }) => {
   return (
     <div>
       <h1>test app {count}</h1>
@@ -30,11 +32,12 @@ const Test = cc<{ count: () => number }>(({ count }) => {
 
 export const Counter = cc(async () => {
   const [count, setCount] = useState(0);
-  const [items, setItems] = useState([1, 2, 3]);
+  const [items, setItems] = useState<number[]>([]);
   const test = signal(1);
+
   useEffect(() => {
     console.log("count from useEffect", count());
-  }, [() => test.value]);
+  }, [count]);
 
   onUpdated(() => {
     console.log("onUpdated", count());
@@ -51,7 +54,7 @@ export const Counter = cc(async () => {
   const handleClick = () => {
     console.log("count", count());
     console.log("items", items());
-    setItems([...items(), items().length + 1]);
+    setItems([...items(), items().length]);
     setCount(count() + 1);
     test.value++;
   };
@@ -70,9 +73,15 @@ export const Counter = cc(async () => {
       <Show when={countries}>
         <CountryList countries={countries.countries} />
       </Show>
-      {Array.from({ length: -110 }, (_, i) => (
-        <h1 key={i}>{i}</h1>
-      ))}
+      <Virtual
+        containerHeight={50}
+        each={items}
+        itemHeight={16}
+        key={(item) => item}
+        overscan={3}
+      >
+        {(item) => <div>{item}</div>}
+      </Virtual>
     </div>
   );
 });
@@ -80,5 +89,9 @@ export const Counter = cc(async () => {
 const CountryList = cc<{
   countries: Country[];
 }>(({ countries }) => {
-  return <For each={countries}>{(country) => <div>{country.name}</div>}</For>;
+  return (
+    <For each={countries} key={(country) => country.name}>
+      {(country) => <div>{country.name}</div>}
+    </For>
+  );
 });
