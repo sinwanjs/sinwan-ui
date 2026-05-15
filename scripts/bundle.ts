@@ -35,6 +35,10 @@ const ENTRYPOINTS = [
   `${SRC}/jsx/jsx-dev-runtime.ts`,
   `${SRC}/server/index.ts`,
   `${SRC}/renderer/index.ts`,
+  `${SRC}/store/index.ts`,
+  `${SRC}/integrations/react/_client.ts`,
+  `${SRC}/integrations/react/_server.ts`,
+  `${SRC}/integrations/react/_static.ts`,
 ];
 
 const result = await Bun.build({
@@ -43,7 +47,7 @@ const result = await Bun.build({
   outdir: OUTDIR,
   target: format === "cjs" ? "node" : "bun",
   format,
-  splitting: false,
+  splitting: format === "esm",
   packages: "external",
   sourcemap: isProd ? "external" : "linked",
   minify: isProd

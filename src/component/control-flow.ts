@@ -1,4 +1,9 @@
-import type { Reactive, SinwanComponent, SinwanElement, SinwanNode } from "../types.ts";
+import type {
+  Reactive,
+  SinwanComponent,
+  SinwanElement,
+  SinwanNode,
+} from "../types.ts";
 import { computed } from "../reactivity/computed.ts";
 import { resolve } from "../reactivity/index.ts";
 
@@ -10,6 +15,11 @@ export const INDEX_TYPE = Symbol.for("Sinwan.Index");
 export const KEY_TYPE = Symbol.for("Sinwan.Key");
 export const DYNAMIC_TYPE = Symbol.for("Sinwan.Dynamic");
 export const PORTAL_TYPE = Symbol.for("Sinwan.Portal");
+export const SUSPENSE_TYPE = Symbol.for("Sinwan.Suspense");
+export const ACTIVITY_TYPE = Symbol.for("Sinwan.Activity");
+export const VIEW_TRANSITION_TYPE = Symbol.for("Sinwan.ViewTransition");
+export const ERROR_BOUNDARY_TYPE = Symbol.for("Sinwan.ErrorBoundary");
+export const VIRTUAL_TYPE = Symbol.for("Sinwan.Virtual");
 
 export interface ShowProps<T> {
   when: Reactive<T | false | null | undefined>;
@@ -45,9 +55,7 @@ export interface KeyProps<T> {
   children?: SinwanNode | ((value: T) => SinwanNode);
 }
 
-export type DynamicTag<P extends object = any> =
-  | string
-  | SinwanComponent<P>;
+export type DynamicTag<P extends object = any> = string | SinwanComponent<P>;
 
 export type DynamicProps<P extends object = Record<string, unknown>> = P & {
   component: Reactive<DynamicTag<P> | null | undefined>;
@@ -58,7 +66,10 @@ export interface VisibleProps {
   when: Reactive<unknown>;
   as?: string;
   style?: Reactive<
-    Record<string, string | number | null | undefined> | string | null | undefined
+    | Record<string, string | number | null | undefined>
+    | string
+    | null
+    | undefined
   >;
   children?: SinwanNode;
   [key: string]: unknown;
@@ -67,6 +78,21 @@ export interface VisibleProps {
 export interface PortalProps {
   mount?: Reactive<Node | string | (() => Node | null) | null | undefined>;
   children?: SinwanNode;
+}
+
+export interface ErrorBoundaryProps {
+  fallback?: SinwanNode | ((error: Error, reset: () => void) => SinwanNode);
+  children?: SinwanNode;
+}
+
+export interface VirtualProps<T> {
+  each: Reactive<readonly T[]>;
+  key?: (item: T, index: number) => string | number | symbol;
+  itemHeight: number;
+  containerHeight: number;
+  overscan?: number;
+  fallback?: SinwanNode;
+  children?: (item: T, index: () => number) => SinwanNode;
 }
 
 export function Show<T>(props: ShowProps<T>): SinwanElement {
@@ -128,13 +154,7 @@ export function Dynamic<P extends object = Record<string, unknown>>(
 }
 
 export function Visible(props: VisibleProps): SinwanElement {
-  const {
-    when,
-    as = "span",
-    style,
-    children,
-    ...rest
-  } = props;
+  const { when, as = "span", style, children, ...rest } = props;
 
   const visibleStyle = computed(() => {
     const base = readReactive(style);
@@ -167,6 +187,22 @@ export function Visible(props: VisibleProps): SinwanElement {
 export function Portal(props: PortalProps): SinwanElement {
   return {
     tag: PORTAL_TYPE,
+    props: props as unknown as Record<string, unknown>,
+    children: [],
+  };
+}
+
+export function ErrorBoundary(props: ErrorBoundaryProps): SinwanElement {
+  return {
+    tag: ERROR_BOUNDARY_TYPE,
+    props: props as unknown as Record<string, unknown>,
+    children: [],
+  };
+}
+
+export function Virtual<T>(props: VirtualProps<T>): SinwanElement {
+  return {
+    tag: VIRTUAL_TYPE,
     props: props as unknown as Record<string, unknown>,
     children: [],
   };
@@ -208,8 +244,31 @@ export function isPortalElement(element: SinwanElement): boolean {
   return element.tag === PORTAL_TYPE;
 }
 
+export function isSuspenseElement(element: SinwanElement): boolean {
+  return element.tag === SUSPENSE_TYPE;
+}
+
+export function isActivityElement(element: SinwanElement): boolean {
+  return element.tag === ACTIVITY_TYPE;
+}
+
+export function isViewTransitionElement(element: SinwanElement): boolean {
+  return element.tag === VIEW_TRANSITION_TYPE;
+}
+
+export function isErrorBoundaryElement(element: SinwanElement): boolean {
+  return element.tag === ERROR_BOUNDARY_TYPE;
+}
+
+export function isVirtualElement(element: SinwanElement): boolean {
+  return element.tag === VIRTUAL_TYPE;
+}
+
 export function resolveSwitchContent(element: SinwanElement): SinwanNode {
-  const props = element.props as { fallback?: SinwanNode; children?: SinwanNode };
+  const props = element.props as {
+    fallback?: SinwanNode;
+    children?: SinwanNode;
+  };
   const children = normalizeContent(props.children ?? element.children);
 
   const match = findTruthyMatch(children);

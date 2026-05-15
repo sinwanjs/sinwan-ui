@@ -1,5 +1,5 @@
 import { onUpdated } from "sinwan";
-import { signal, computed, createComponent, For } from "sinwan";
+import { signal, computed, cc, For } from "sinwan";
 
 interface Todo {
   id: number;
@@ -9,7 +9,7 @@ interface Todo {
 
 let nextId = 1;
 
-export const TodoList = createComponent(() => {
+export const TodoList = cc(() => {
   const todos = signal<Todo[]>([
     { id: nextId++, text: "Try sinwan", done: true },
     { id: nextId++, text: "Build something cool", done: false },

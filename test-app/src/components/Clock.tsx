@@ -1,6 +1,6 @@
-import { signal, computed, createComponent, onMounted, onUnmounted } from "sinwan";
+import { signal, computed, cc, onMounted, onUnmounted } from "sinwan";
 
-export const Clock = createComponent(() => {
+export const Clock = cc(() => {
   const now = signal(new Date());
   const formatted = computed(() =>
     now.value.toLocaleTimeString(undefined, { hour12: false }),

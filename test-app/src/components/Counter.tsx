@@ -1,6 +1,6 @@
-import { signal, computed, createComponent } from "sinwan";
+import { signal, computed, cc } from "sinwan";
 
-export const Counter = createComponent(() => {
+export const Counter = cc(() => {
   const count = signal(0);
   const isZero = computed(() => count.value === 0);
 
@@ -14,7 +14,11 @@ export const Counter = createComponent(() => {
       <div class="row">
         <button onClick={() => (count.value += 1)}>+1</button>
         <button onClick={() => (count.value += 5)}>+5</button>
-        <button class="secondary" disabled={isZero} onClick={() => (count.value = 0)}>
+        <button
+          class="secondary"
+          disabled={isZero}
+          onClick={() => (count.value = 0)}
+        >
           Reset
         </button>
       </div>

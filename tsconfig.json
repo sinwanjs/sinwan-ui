@@ -40,6 +40,6 @@
     "experimentalDecorators": true,
     "emitDecoratorMetadata": false // handled by @sinwan/reflector
   },
-  "include": ["src/**/*", "__tests__/**/*", "build.ts"],
+  "include": ["src/**/*", "__tests__/**/*", "examples/**/*", "build.ts"],
   "exclude": ["dist", "node_modules"]
 }

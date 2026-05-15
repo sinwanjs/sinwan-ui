@@ -40,6 +40,22 @@ const ENTRIES: PublicEntry[] = [
   },
   { name: "server", internal: "server/index", types: "server/index" },
   { name: "renderer", internal: "renderer/index", types: "renderer/index" },
+  { name: "store", internal: "store/index", types: "store/index" },
+  {
+    name: "react-client",
+    internal: "integrations/react/_client",
+    types: "integrations/react/_client",
+  },
+  {
+    name: "react-server",
+    internal: "integrations/react/_server",
+    types: "integrations/react/_server",
+  },
+  {
+    name: "react-static",
+    internal: "integrations/react/_static",
+    types: "integrations/react/_static",
+  },
 ];
 
 const cjsShim = (internal: string) => `'use strict';

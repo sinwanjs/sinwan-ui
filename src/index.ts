@@ -2,10 +2,9 @@
 
 export type {
   SinwanNode,
+  SinwanSyncNode,
   SinwanElement,
   SinwanComponent,
-  SinwanPage,
-  SinwanLayout,
   SinwanSlots,
   SinwanPrimitive,
   Reactive,
@@ -34,6 +33,9 @@ export {
   computed,
   isComputed,
   effect,
+  untrack,
+  on,
+  observable,
   batch,
   nextTick,
 } from "./reactivity/index.ts";
@@ -43,14 +45,15 @@ export type {
   Computed,
   CleanupFn,
   EffectFn,
+  Observer,
+  Subscription,
+  Observable,
 } from "./reactivity/index.ts";
 
 // ─── Components ────────────────────────────────────────────
 
 export {
-  createComponent,
-  createPage,
-  createLayout,
+  cc,
   Show,
   For,
   Switch,
@@ -60,6 +63,8 @@ export {
   Dynamic,
   Visible,
   Portal,
+  ErrorBoundary,
+  Virtual,
 } from "./component/index.ts";
 
 export {
@@ -67,9 +72,23 @@ export {
   onUnmounted,
   onUpdated,
   onError,
+  onDispose,
+  onClient,
+  onHydrated,
+  onServer,
 } from "./component/index.ts";
 
 export { provide, inject, getCurrentInstance } from "./component/index.ts";
+
+export {
+  island,
+  isIslandElement,
+  ISLAND_TAG,
+  ISLAND_ATTR,
+  ISLAND_PROPS_ATTR,
+} from "./component/index.ts";
+
+export type { IslandOptions, IslandMeta } from "./component/index.ts";
 
 export type {
   ComponentInstance,
@@ -84,6 +103,8 @@ export type {
   DynamicTag,
   VisibleProps,
   PortalProps,
+  ErrorBoundaryProps,
+  VirtualProps,
 } from "./component/index.ts";
 
 // ─── Renderer ──────────────────────────────────────────────
@@ -97,13 +118,56 @@ export {
   domOps,
   setDOMOps,
   resetDOMOps,
+  _$createTemplate,
 } from "./renderer/index.ts";
 
 export type { MountedNode, AppInstance, DOMOps } from "./renderer/index.ts";
 
 // ─── Hydration ─────────────────────────────────────────────
 
-export { hydrate } from "./hydration/index.ts";
+export { hydrate, hydrateIslands } from "./hydration/index.ts";
+export type {
+  IslandRegistry,
+  HydrateIslandsOptions,
+  HydratedIsland,
+} from "./hydration/index.ts";
+
+// ─── React interop (SHARED) ───────────────────────────
+// Authored from scratch — zero `react` / `react-dom` dependency.
+// CLIENT/SERVER/STATIC adapters live behind sub-path exports.
+
+export {
+  Fragment as ReactFragment,
+  createContext,
+  memo,
+  lazy,
+  use,
+  cache,
+  cacheSignal,
+  addTransitionType,
+  captureOwnerStack,
+} from "./integrations/react/_shared.ts";
+
+export type {
+  ReactNode,
+  ReactElement,
+  Key as ReactKey,
+  Ref,
+  RefObject,
+  MutableRefObject,
+  RefCallback,
+  ComponentType,
+  FunctionComponent,
+  FC,
+  MemoExoticComponent,
+  LazyExoticComponent,
+  ErrorInfo,
+  Context,
+  Provider as ContextProvider,
+  Consumer as ContextConsumer,
+  ContextType,
+  Usable,
+} from "./integrations/react/_shared.ts";
 
 // ─── Server (SSR) ──────────────────────────────────────────
 
@@ -118,4 +182,12 @@ export {
   streamHydratableNode,
   renderToHydratableString,
   renderNodeToHydratableString,
+  renderShell,
+  streamShell,
+} from "./server/index.ts";
+
+export type {
+  ShellOptions,
+  ShellScript,
+  ShellStylesheet,
 } from "./server/index.ts";

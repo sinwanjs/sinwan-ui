@@ -77,6 +77,62 @@
       },
       "default": "./dist/renderer.js"
     },
+    "./store": {
+      "types": "./dist/store.d.ts",
+      "import": {
+        "development": "./dist/esm/store/index.development.js",
+        "production": "./dist/esm/store/index.production.min.js",
+        "default": "./dist/esm/store/index.production.min.js"
+      },
+      "require": {
+        "development": "./dist/cjs/store/index.development.js",
+        "production": "./dist/cjs/store/index.production.min.js",
+        "default": "./dist/store.js"
+      },
+      "default": "./dist/store.js"
+    },
+    "./react-client": {
+      "types": "./dist/react-client.d.ts",
+      "import": {
+        "development": "./dist/esm/integrations/react/_client.development.js",
+        "production": "./dist/esm/integrations/react/_client.production.min.js",
+        "default": "./dist/esm/integrations/react/_client.production.min.js"
+      },
+      "require": {
+        "development": "./dist/cjs/integrations/react/_client.development.js",
+        "production": "./dist/cjs/integrations/react/_client.production.min.js",
+        "default": "./dist/react-client.js"
+      },
+      "default": "./dist/react-client.js"
+    },
+    "./react-server": {
+      "types": "./dist/react-server.d.ts",
+      "import": {
+        "development": "./dist/esm/integrations/react/_server.development.js",
+        "production": "./dist/esm/integrations/react/_server.production.min.js",
+        "default": "./dist/esm/integrations/react/_server.production.min.js"
+      },
+      "require": {
+        "development": "./dist/cjs/integrations/react/_server.development.js",
+        "production": "./dist/cjs/integrations/react/_server.production.min.js",
+        "default": "./dist/react-server.js"
+      },
+      "default": "./dist/react-server.js"
+    },
+    "./react-static": {
+      "types": "./dist/react-static.d.ts",
+      "import": {
+        "development": "./dist/esm/integrations/react/_static.development.js",
+        "production": "./dist/esm/integrations/react/_static.production.min.js",
+        "default": "./dist/esm/integrations/react/_static.production.min.js"
+      },
+      "require": {
+        "development": "./dist/cjs/integrations/react/_static.development.js",
+        "production": "./dist/cjs/integrations/react/_static.production.min.js",
+        "default": "./dist/react-static.js"
+      },
+      "default": "./dist/react-static.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [
@@ -92,7 +148,6 @@
     "prepublishOnly": "bun run typecheck && bun run build && bun run test",
     "test": "bun test",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint . --ext .ts,.tsx",
     "app": "cd test-app && bun run dev",
     "app:i": "cd test-app && bun i"
   },
@@ -110,12 +165,11 @@
   ],
   "author": "Mohammed Ben Cheikh",
   "license": "MIT",
-  "bugs": "https://github.com/sinwanjs/sinwan-ui/issues",
+  "bugs": "https://github.com/sinwanjs/sinwan/issues",
   "homepage": "https://sinwanjs.com",
   "repository": {
     "type": "git",
-    "url": "https://github.com/sinwanjs/sinwan-ui",
-    "directory": "sinwan-ui"
+    "url": "https://github.com/sinwanjs/sinwan"
   },
   "devDependencies": {
     "@types/bun": "latest",

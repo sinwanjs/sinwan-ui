@@ -8,7 +8,7 @@ import { describe, it, expect, beforeEach } from "bun:test";
 import { Window } from "happy-dom";
 import { signal, computed, nextTick } from "../src/reactivity/index.ts";
 import { mount } from "../src/renderer/mount.ts";
-import { createComponent } from "../src/component/create.ts";
+import { cc } from "../src/component/create.ts";
 import { onMounted, onUnmounted } from "../src/component/lifecycle.ts";
 import {
   Dynamic,
@@ -59,7 +59,7 @@ describe("Show", () => {
   it("swaps truthy and fallback branches reactively", async () => {
     const visible = signal(false);
 
-    const App = createComponent(() =>
+    const App = cc(() =>
       el(
         "section",
         {},
@@ -88,7 +88,7 @@ describe("Show", () => {
   it("passes the non-null value to function children", async () => {
     const name = signal<string | null>("Ada");
 
-    const App = createComponent(() =>
+    const App = cc(() =>
       el(Show, {
         when: name,
         fallback: "empty",
@@ -112,13 +112,13 @@ describe("Show", () => {
     const visible = signal(false);
     const log: string[] = [];
 
-    const Child = createComponent(() => {
+    const Child = cc(() => {
       onMounted(() => log.push("mounted"));
       onUnmounted(() => log.push("unmounted"));
       return el("span", {}, "child");
     });
 
-    const App = createComponent(() =>
+    const App = cc(() =>
       el(Show, {
         when: visible,
         fallback: "empty",
@@ -146,7 +146,7 @@ describe("For", () => {
   it("renders fallback for empty lists", async () => {
     const items = signal<string[]>([]);
 
-    const App = createComponent(() =>
+    const App = cc(() =>
       el(
         "ul",
         {},
@@ -179,7 +179,7 @@ describe("For", () => {
     const clicked: string[] = [];
     const lifecycle: string[] = [];
 
-    const Row = createComponent<{
+    const Row = cc<{
       item: Item;
       index: () => number;
     }>(({ item, index }) => {
@@ -195,7 +195,7 @@ describe("For", () => {
       );
     });
 
-    const App = createComponent(() =>
+    const App = cc(() =>
       el(
         "ul",
         {},
@@ -245,12 +245,89 @@ describe("For", () => {
     ]);
   });
 
+  it("swaps two keyed rows via O(1) fast-path without re-mounting", async () => {
+    type Item = { id: string; label: string };
+    const a = { id: "a", label: "A" };
+    const b = { id: "b", label: "B" };
+    const c = { id: "c", label: "C" };
+    const items = signal<Item[]>([a, b, c]);
+    const lifecycle: string[] = [];
+
+    const Row = cc<{ item: Item }>(({ item }) => {
+      onMounted(() => lifecycle.push(`mounted:${item.id}`));
+      onUnmounted(() => lifecycle.push(`unmounted:${item.id}`));
+      return el("li", { "data-id": item.id }, item.label);
+    });
+
+    const App = cc(() =>
+      el(
+        "ul",
+        {},
+        el(For, {
+          each: items,
+          key: (item: Item) => item.id,
+          children: (item: Item) => el(Row, { item }),
+        }),
+      ),
+    );
+
+    mount(App, container);
+    let rows = byTag(container, "li");
+    const firstA = rows[0]!;
+    const firstB = rows[1]!;
+    const firstC = rows[2]!;
+    expect(rows.map((r) => r.textContent)).toEqual(["A", "B", "C"]);
+    expect(lifecycle).toEqual(["mounted:a", "mounted:b", "mounted:c"]);
+
+    // Swap a and b by exchanging references in a new array
+    items.value = [b, a, c];
+    await nextTick();
+    rows = byTag(container, "li");
+    expect(rows.map((r) => r.getAttribute("data-id"))).toEqual(["b", "a", "c"]);
+    expect(rows[0]).toBe(firstB);
+    expect(rows[1]).toBe(firstA);
+    expect(rows[2]).toBe(firstC);
+    // No extra unmount/mount should happen for a pure swap
+    expect(lifecycle).toEqual(["mounted:a", "mounted:b", "mounted:c"]);
+  });
+
+  it("renders keyed rows in correct order on initial create from empty", async () => {
+    type Item = { id: string; label: string };
+    const items = signal<Item[]>([]);
+
+    const App = cc(() =>
+      el(
+        "ul",
+        {},
+        el(For, {
+          each: items,
+          key: (item: Item) => item.id,
+          children: (item: Item) =>
+            el("li", { "data-id": item.id }, item.label),
+        }),
+      ),
+    );
+
+    mount(App, container);
+    expect(container.textContent).toBe("");
+
+    items.value = [
+      { id: "1", label: "One" },
+      { id: "2", label: "Two" },
+      { id: "3", label: "Three" },
+    ];
+    await nextTick();
+    const rows = byTag(container, "li");
+    expect(rows.map((r) => r.getAttribute("data-id"))).toEqual(["1", "2", "3"]);
+    expect(rows.map((r) => r.textContent)).toEqual(["One", "Two", "Three"]);
+  });
+
   it("works with Show fallback when list toggles empty/non-empty", async () => {
     type Item = { id: string; label: string };
     const items = signal<Item[]>([]);
     const isEmpty = computed(() => items.value.length === 0);
 
-    const App = createComponent(() =>
+    const App = cc(() =>
       el(
         "ul",
         {},
@@ -259,7 +336,8 @@ describe("For", () => {
           fallback: el(For, {
             each: items,
             key: (item: Item) => item.id,
-            children: (item: Item) => el("li", { "data-id": item.id }, item.label),
+            children: (item: Item) =>
+              el("li", { "data-id": item.id }, item.label),
           }),
           children: el("li", { id: "empty" }, "No todos yet!"),
         }),
@@ -273,9 +351,9 @@ describe("For", () => {
     items.value = [{ id: "a", label: "A" }];
     await nextTick();
     expect(container.textContent).toBe("A");
-    expect(byTag(container, "li").map((row) => row.getAttribute("data-id"))).toEqual([
-      "a",
-    ]);
+    expect(
+      byTag(container, "li").map((row) => row.getAttribute("data-id")),
+    ).toEqual(["a"]);
 
     items.value = [
       { id: "a", label: "A" },
@@ -298,7 +376,7 @@ describe("Switch/Match", () => {
   it("renders the first truthy match and then fallback", async () => {
     const status = signal<"idle" | "loading" | "done">("idle");
 
-    const App = createComponent(() =>
+    const App = cc(() =>
       el(Switch, {
         fallback: el("p", {}, "fallback"),
         children: [
@@ -331,7 +409,7 @@ describe("Switch/Match", () => {
     const target = signal(2);
     const showMatch = signal(true);
 
-    const App = createComponent(() =>
+    const App = cc(() =>
       el(Switch, {
         fallback: el("p", {}, "fallback"),
         children: [
@@ -377,7 +455,7 @@ describe("Index", () => {
     const items = signal([{ label: "A" }, { label: "B" }]);
     const lifecycle: string[] = [];
 
-    const Row = createComponent<{
+    const Row = cc<{
       item: () => { label: string };
       index: number;
     }>(({ item, index }) => {
@@ -387,7 +465,7 @@ describe("Index", () => {
       return el("li", { "data-index": index }, label as any);
     });
 
-    const App = createComponent(() =>
+    const App = cc(() =>
       el(
         "ul",
         {},
@@ -433,16 +511,20 @@ describe("Key", () => {
     const id = signal("a");
     const lifecycle: string[] = [];
 
-    const Child = createComponent<{ id: string }>(({ id }) => {
+    const Child = cc<{ id: string }>(({ id }) => {
       onMounted(() => lifecycle.push(`mounted:${id}`));
       onUnmounted(() => lifecycle.push(`unmounted:${id}`));
       return el("span", {}, id);
     });
 
-    const App = createComponent(() =>
+    const App = cc(() =>
       el(Key, {
         when: id,
-        children: (value: string) => ({ tag: Child, props: { id: value }, children: [] }),
+        children: (value: string) => ({
+          tag: Child,
+          props: { id: value },
+          children: [],
+        }),
       }),
     );
 
@@ -461,7 +543,7 @@ describe("Dynamic", () => {
   it("remounts when the dynamic tag changes", async () => {
     const tag = signal<"button" | "a">("button");
 
-    const App = createComponent(() =>
+    const App = cc(() =>
       el(Dynamic, {
         component: tag,
         href: "/next",
@@ -485,13 +567,13 @@ describe("Visible", () => {
     const visible = signal(false);
     const lifecycle: string[] = [];
 
-    const Child = createComponent(() => {
+    const Child = cc(() => {
       onMounted(() => lifecycle.push("mounted"));
       onUnmounted(() => lifecycle.push("unmounted"));
       return el("span", {}, "child");
     });
 
-    const App = createComponent(() =>
+    const App = cc(() =>
       el(
         Visible,
         { when: visible, as: "div", class: "panel" },
@@ -516,8 +598,12 @@ describe("Portal", () => {
     const target = doc.createElement("div");
     doc.body.appendChild(target);
 
-    const App = createComponent(() =>
-      el("section", {}, el(Portal, { mount: target, children: el("span", {}, "ported") })),
+    const App = cc(() =>
+      el(
+        "section",
+        {},
+        el(Portal, { mount: target, children: el("span", {}, "ported") }),
+      ),
     );
 
     const app = mount(App, container);
