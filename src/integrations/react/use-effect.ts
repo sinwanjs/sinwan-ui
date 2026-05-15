@@ -152,7 +152,7 @@ function registerEffect(
  *   useEffect(() => {
  *     console.log(`count changed: ${count()}`);
  *   }, [count]); // Pass the getter, not count()
- *   return <span>{count()}</span>;
+ *   return <span>{count}</span>;
  * };
  * ```
  */

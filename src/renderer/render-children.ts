@@ -27,6 +27,7 @@ import {
   getCurrentInstance,
   queueUpdatedHooks,
   fireMountedHooks,
+  withInstance,
 } from "../component/instance.ts";
 import { removeMountedNode } from "./unmount.ts";
 import { isTemplateResult, type SinwanTemplateResult } from "./template.ts";
@@ -111,12 +112,11 @@ export function renderNodeToDOM(
 
     node.then((resolved) => {
       if (mounted.disposed) return;
-      const resolvedNode = renderNodeToDOM(
-        resolved,
-        parent,
-        endAnchor,
-        namespace,
-      );
+      const resolvedNode = owner
+        ? withInstance(owner, () =>
+            renderNodeToDOM(resolved, parent, endAnchor, namespace),
+          )
+        : renderNodeToDOM(resolved, parent, endAnchor, namespace);
       mounted.children = [resolvedNode];
       domOps.remove(placeholder);
       if (owner) fireMountedHooks(owner);

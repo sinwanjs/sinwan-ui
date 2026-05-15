@@ -68,6 +68,8 @@ export function mount(
       // Mutable cell so unmount() sees the resolved root after swap
       const rootRef: { current: MountedNode } = { current: root };
 
+      setCurrentInstance(null);
+
       result.then(
         (resolved) => {
           container.innerHTML = "";

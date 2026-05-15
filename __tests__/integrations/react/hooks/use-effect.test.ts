@@ -25,6 +25,7 @@ import {
   useLayoutEffect,
   useEffectEvent,
 } from "../../../../src/integrations/react/_client.ts";
+import { onUpdated } from "../../../../src/component/lifecycle.ts";
 
 let container: HTMLElement;
 beforeEach(() => {
@@ -1199,5 +1200,49 @@ describe("useEffect — Dependency Array", () => {
       "fetch:dogs",
       "done:dogs",
     ]);
+  });
+
+  // Regression: async component lifecycle hooks must fire on updates
+  it("async component: useEffect and onUpdated fire on every reactive update", async () => {
+    const effectLog: number[] = [];
+    const updatedLog: number[] = [];
+    let setCount: any;
+
+    const AsyncCounter = cc(async () => {
+      const [count, setC] = useState(0);
+      setCount = setC;
+
+      useEffect(() => {
+        effectLog.push(count());
+      }, [count]);
+
+      onUpdated(() => {
+        updatedLog.push(count());
+      });
+
+      await Promise.resolve();
+
+      return el("span", {}, count as any);
+    });
+
+    const App = cc(() => {
+      return el("div", {}, el(AsyncCounter, {}));
+    });
+
+    mount(App, container);
+    await tick();
+    expect(effectLog).toEqual([0]);
+    // onUpdated fires once when the child async component resolves
+    expect(updatedLog).toEqual([0]);
+
+    setCount(1);
+    await tick();
+    expect(effectLog).toEqual([0, 1]);
+    expect(updatedLog).toEqual([0, 1]);
+
+    setCount(2);
+    await tick();
+    expect(effectLog).toEqual([0, 1, 2]);
+    expect(updatedLog).toEqual([0, 1, 2]);
   });
 });
