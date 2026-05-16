@@ -48,7 +48,6 @@ import {
   createComponentInstance,
   getCurrentInstance,
   setCurrentInstance,
-  fireMountedHooks,
   handleComponentError,
   queueUpdatedHooks,
 } from "../component/instance.ts";
