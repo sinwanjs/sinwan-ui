@@ -89,34 +89,6 @@
       },
       "default": "./dist/react-static.js"
     },
-    "./jsx-runtime": {
-      "types": "./dist/jsx-runtime.d.ts",
-      "import": {
-        "development": "./dist/esm/jsx/jsx-runtime.development.js",
-        "production": "./dist/esm/jsx/jsx-runtime.production.min.js",
-        "default": "./dist/esm/jsx/jsx-runtime.production.min.js"
-      },
-      "require": {
-        "development": "./dist/cjs/jsx/jsx-runtime.development.js",
-        "production": "./dist/cjs/jsx/jsx-runtime.production.min.js",
-        "default": "./dist/jsx-runtime.js"
-      },
-      "default": "./dist/jsx-runtime.js"
-    },
-    "./jsx-dev-runtime": {
-      "types": "./dist/jsx-dev-runtime.d.ts",
-      "import": {
-        "development": "./dist/esm/jsx/jsx-dev-runtime.development.js",
-        "production": "./dist/esm/jsx/jsx-dev-runtime.production.min.js",
-        "default": "./dist/esm/jsx/jsx-dev-runtime.production.min.js"
-      },
-      "require": {
-        "development": "./dist/cjs/jsx/jsx-dev-runtime.development.js",
-        "production": "./dist/cjs/jsx/jsx-dev-runtime.production.min.js",
-        "default": "./dist/jsx-dev-runtime.js"
-      },
-      "default": "./dist/jsx-dev-runtime.js"
-    },
     "./reactivity": {
       "types": "./dist/reactivity.d.ts",
       "import": {
@@ -172,6 +144,34 @@
         "default": "./dist/store.js"
       },
       "default": "./dist/store.js"
+    },
+    "./jsx-runtime": {
+      "types": "./dist/jsx-runtime.d.ts",
+      "import": {
+        "development": "./dist/esm/jsx/jsx-runtime.development.js",
+        "production": "./dist/esm/jsx/jsx-runtime.production.min.js",
+        "default": "./dist/esm/jsx/jsx-runtime.production.min.js"
+      },
+      "require": {
+        "development": "./dist/cjs/jsx/jsx-runtime.development.js",
+        "production": "./dist/cjs/jsx/jsx-runtime.production.min.js",
+        "default": "./dist/jsx-runtime.js"
+      },
+      "default": "./dist/jsx-runtime.js"
+    },
+    "./jsx-dev-runtime": {
+      "types": "./dist/jsx-dev-runtime.d.ts",
+      "import": {
+        "development": "./dist/esm/jsx/jsx-dev-runtime.development.js",
+        "production": "./dist/esm/jsx/jsx-dev-runtime.production.min.js",
+        "default": "./dist/esm/jsx/jsx-dev-runtime.production.min.js"
+      },
+      "require": {
+        "development": "./dist/cjs/jsx/jsx-dev-runtime.development.js",
+        "production": "./dist/cjs/jsx/jsx-dev-runtime.production.min.js",
+        "default": "./dist/jsx-dev-runtime.js"
+      },
+      "default": "./dist/jsx-dev-runtime.js"
     },
     "./package.json": "./package.json"
   },

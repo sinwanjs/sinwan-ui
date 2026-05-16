@@ -20,7 +20,9 @@
  *    array signal, which already triggers one reactive flush.
  */
 
-import { signal, mount, cc, For, type Signal } from "sinwan";
+import { signal, type Signal } from "sinwan/reactivity";
+import { mount } from "sinwan/renderer";
+import { cc, For } from "sinwan/component";
 import type { Row } from "./data.ts";
 import type { FrameworkAdapter } from "./harness.ts";
 

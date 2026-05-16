@@ -277,7 +277,7 @@ export function transformJSX(
         t.identifier("_$createTemplate"),
       ),
     ],
-    t.stringLiteral("sinwan"),
+    t.stringLiteral("sinwan/renderer"),
   );
 
   ast.program.body.unshift(importDecl, ...templateDecls);

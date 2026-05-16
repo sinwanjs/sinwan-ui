@@ -6,7 +6,7 @@
 
 import { measure, measureOps, type SampleStats } from "./harness.ts";
 import { Counter } from "../components/counter-1.tsx";
-import { mount } from "sinwan";
+import { mount } from "sinwan/renderer";
 
 interface CounterAdapter {
   mount(container: HTMLElement): void;
