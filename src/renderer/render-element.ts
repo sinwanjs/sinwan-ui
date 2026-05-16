@@ -38,7 +38,6 @@ import {
   isViewTransitionElement,
   isVirtualElement,
   Show,
-  SUSPENSE_TYPE,
 } from "../component/control-flow.ts";
 import {
   renderControlFlowToDOM,

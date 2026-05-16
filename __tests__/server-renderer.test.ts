@@ -8,7 +8,7 @@ import {
   renderToString,
   isSlots,
 } from "../src/server/renderer.ts";
-import { HtmlEscapedString, raw } from "../src/escaper.ts";
+import { HtmlEscapedString, raw } from "../src/common/escaper.ts";
 import {
   Show,
   For,

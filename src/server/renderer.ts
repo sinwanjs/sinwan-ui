@@ -11,7 +11,7 @@ import type {
   SinwanComponent,
   SinwanSlots,
 } from "../types.ts";
-import { HtmlEscapedString, escapeHtml } from "../escaper.ts";
+import { HtmlEscapedString, escapeHtml } from "../common/escaper.ts";
 import { renderServerAttribute } from "./attribute-utils.ts";
 import { isSignal } from "../reactivity/signal.ts";
 import { isComputed } from "../reactivity/computed.ts";

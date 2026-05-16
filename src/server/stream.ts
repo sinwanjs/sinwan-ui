@@ -5,13 +5,8 @@
  * Streams chunks as they resolve without waiting for full tree.
  */
 
-import type {
-  SinwanNode,
-  SinwanElement,
-  SinwanComponent,
-  SinwanSlots,
-} from "../types.ts";
-import { HtmlEscapedString, escapeHtml } from "../escaper.ts";
+import type { SinwanNode, SinwanElement, SinwanComponent } from "../types.ts";
+import { HtmlEscapedString, escapeHtml } from "../common/escaper.ts";
 import { renderServerAttribute } from "./attribute-utils.ts";
 import { isSignal } from "../reactivity/signal.ts";
 import { isComputed } from "../reactivity/computed.ts";

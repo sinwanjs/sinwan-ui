@@ -7,7 +7,7 @@
  * (Node, Deno, Cloudflare Workers, browsers).
  */
 
-import { HtmlEscapedString, raw } from "./jsx/jsx-runtime";
+import { HtmlEscapedString, raw } from "../jsx/jsx-runtime";
 
 export { HtmlEscapedString, raw };
 

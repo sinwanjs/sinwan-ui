@@ -1,5 +1,5 @@
 import { describe, it, expect } from "bun:test";
-import { safeHtml, isSafeHtml, escapeHtml } from "../src/escaper.ts";
+import { safeHtml, isSafeHtml, escapeHtml } from "../src/common/escaper.ts";
 
 describe("safeHtml", () => {
   it("returns an HtmlEscapedString", () => {
