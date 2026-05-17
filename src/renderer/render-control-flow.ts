@@ -1206,15 +1206,14 @@ export function renderBlockContent(
 }
 
 export function clearChildren(block: MountedReactiveBlock): void {
-  // Fast path: remove all DOM nodes between anchors in one sweep,
-  // avoiding the expensive getMountedDomNodes recursive traversal.
-  if (block.startAnchor.parentNode) {
-    let node = block.startAnchor.nextSibling;
-    while (node && node !== block.endAnchor) {
-      const next = node.nextSibling;
-      domOps.remove(node);
-      node = next;
-    }
+  // Fast path: use native Range to delete all nodes between anchors in one
+  // optimized C++ operation, avoiding the expensive per-node remove() overhead.
+  const parent = block.startAnchor.parentNode;
+  if (parent && block.startAnchor.nextSibling !== block.endAnchor) {
+    const range = document.createRange();
+    range.setStartAfter(block.startAnchor);
+    range.setEndBefore(block.endAnchor);
+    range.deleteContents(); // Native batch removal, O(1) per call
   }
   // Run logical cleanup (effects, events, refs)
   for (const child of block.children) {
@@ -1295,7 +1294,9 @@ function syncPortalOrder(mounted: MountedNode): void {
   }
 }
 
-export function fireMountedAndQueueUpdated(owner: ComponentInstance | null): void {
+export function fireMountedAndQueueUpdated(
+  owner: ComponentInstance | null,
+): void {
   if (owner) {
     fireMountedHooks(owner);
   }

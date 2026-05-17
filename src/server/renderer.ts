@@ -428,7 +428,8 @@ async function renderForElement(element: SinwanElement): Promise<string> {
   // replace map/Promise.all with for loop to avoid creating an intermediate array (critical for large lists)
   const promises: Promise<string>[] = [];
   for (let i = 0; i < each.length; i++) {
-    promises.push(renderToString(props.children!(each[i], () => i)));
+    const index = i;
+    promises.push(renderToString(props.children!(each[i], () => index)));
   }
   const rendered = await Promise.all(promises);
   let output = "";
@@ -456,7 +457,8 @@ async function renderIndexElement(element: SinwanElement): Promise<string> {
   // replace map/Promise.all with for loop to avoid creating an intermediate array (critical for large lists)
   const promises: Promise<string>[] = [];
   for (let i = 0; i < each.length; i++) {
-    promises.push(renderToString(props.children!(() => each[i], i)));
+    const item = each[i];
+    promises.push(renderToString(props.children!(() => item, i)));
   }
   const rendered = await Promise.all(promises);
   let output = "";
@@ -525,7 +527,16 @@ async function renderVirtualElement(element: SinwanElement): Promise<string> {
   if (typeof renderChild === "function") {
     const promises: Promise<string>[] = [];
     for (let i = startIndex; i < endIndex; i++) {
-      promises.push(renderToString(renderChild(list[i], () => i)));
+      const index = i;
+      const top = i * itemHeight;
+      // Wrap each item in a div with absolute positioning at the correct top
+      const itemPromise = renderToString(
+        renderChild(list[i], () => index),
+      ).then(
+        (html) =>
+          `<div style="position:absolute;top:${top}px;left:0;right:0">${html}</div>`,
+      );
+      promises.push(itemPromise);
     }
     const results = await Promise.all(promises);
     for (let i = 0; i < results.length; i++) {

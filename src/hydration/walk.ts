@@ -431,7 +431,8 @@ function hydrateControlFlow(
         ? (() => {
             const result: SinwanNode[] = [];
             for (let i = 0; i < items.length; i++) {
-              result.push(props.children!(items[i], () => i));
+              const index = i;
+              result.push(props.children!(items[i], () => index));
             }
             return result;
           })()
@@ -458,7 +459,8 @@ function hydrateControlFlow(
         ? (() => {
             const result: SinwanNode[] = [];
             for (let i = 0; i < items.length; i++) {
-              result.push(props.children!(() => items[i], i));
+              const item = items[i];
+              result.push(props.children!(() => item, i));
             }
             return result;
           })()
@@ -953,7 +955,12 @@ function hydrateSuspense(
       pushSuspenseBoundary(boundary);
 
       const children = props.children;
-      const childArray = children != null ? (Array.isArray(children) ? children : [children]) : [];
+      const childArray =
+        children != null
+          ? Array.isArray(children)
+            ? children
+            : [children]
+          : [];
       const nodes: MountedNode[] = [];
 
       try {
@@ -974,10 +981,19 @@ function hydrateSuspense(
         for (const node of nodes) {
           removeMountedNode(node);
         }
-        if (err && typeof err === "object" && typeof (err as any).then === "function") {
+        if (
+          err &&
+          typeof err === "object" &&
+          typeof (err as any).then === "function"
+        ) {
           boundary.promises.add(err as any);
           if (!fallbackNode) {
-            fallbackNode = renderNodeToDOM(props.fallback, parent, endAnchor, null);
+            fallbackNode = renderNodeToDOM(
+              props.fallback,
+              parent,
+              endAnchor,
+              null,
+            );
           }
           block.children = fallbackNode ? [fallbackNode] : [];
         } else {
@@ -995,7 +1011,8 @@ function hydrateSuspense(
     }
 
     const children = props.children;
-    const childArray = children != null ? (Array.isArray(children) ? children : [children]) : [];
+    const childArray =
+      children != null ? (Array.isArray(children) ? children : [children]) : [];
     const nodes: MountedNode[] = [];
 
     const boundary = {
@@ -1029,7 +1046,11 @@ function hydrateSuspense(
       initialized = true;
     } catch (err) {
       popSuspenseBoundary();
-      if (err && typeof err === "object" && typeof (err as any).then === "function") {
+      if (
+        err &&
+        typeof err === "object" &&
+        typeof (err as any).then === "function"
+      ) {
         boundary.promises.add(err as any);
         fallbackNode = hydrateNode(props.fallback, cursor);
         parent.insertBefore(endAnchor, cursor.current);

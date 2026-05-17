@@ -362,7 +362,7 @@ async function renderElementH(
     const activityChildren = (props as any).children as SinwanNode;
     const tag = (element.props as any).as ?? "div";
     const hidden = mode === "hidden";
-    
+
     return await renderElementH(
       {
         tag,
@@ -596,9 +596,10 @@ async function renderForElementH(
   // replace map/Promise.all with for loop to avoid creating an intermediate array (critical for large lists)
   const promises: Promise<string>[] = [];
   for (let i = 0; i < each.length; i++) {
+    const index = i;
     promises.push(
       renderNodeH(
-        props.children!(each[i], () => i),
+        props.children!(each[i], () => index),
         ctx,
       ),
     );
@@ -632,9 +633,10 @@ async function renderIndexElementH(
   // replace map/Promise.all with for loop to avoid creating an intermediate array (critical for large lists)
   const promises: Promise<string>[] = [];
   for (let i = 0; i < each.length; i++) {
+    const item = each[i];
     promises.push(
       renderNodeH(
-        props.children!(() => each[i], i),
+        props.children!(() => item, i),
         ctx,
       ),
     );
@@ -708,9 +710,19 @@ async function renderVirtualElementH(
   if (typeof renderChild === "function") {
     const promises: Promise<string>[] = [];
     for (let i = startIndex; i < endIndex; i++) {
+      const index = i;
+      const top = i * itemHeight;
+      // Wrap each item in a div with absolute positioning at the correct top
       promises.push(
         renderNodeH(
-          renderChild(list[i], () => i),
+          {
+            tag: "div",
+            props: {
+              style: `position:absolute;top:${top}px;left:0;right:0`,
+              children: renderChild(list[i], () => index),
+            },
+            children: [],
+          },
           ctx,
         ),
       );

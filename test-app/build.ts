@@ -26,14 +26,16 @@ const result = await Bun.build({
     `${SRC}/benchmarks/mount-bench.tsx`,
     `${SRC}/benchmarks/counter-stress.tsx`,
   ],
-  plugins: [
-    sinwanBun({ hoist: true, treeShake: true })
-  ],
+  plugins: [sinwanBun({ hoist: true, treeShake: false })],
   outdir: `${DIST}/assets`,
   minify: true,
   splitting: true,
   format: "esm",
   naming: "[name].js",
+  jsx: {
+    runtime: "automatic",
+    importSource: "sinwan",
+  },
   define: {
     "process.env.NODE_ENV": JSON.stringify("production"),
     __DEV__: JSON.stringify(false),
@@ -51,23 +53,27 @@ console.log("📄  processing HTML files");
 
 const copyHtml = async (src: string, dest: string, scriptSrc: string) => {
   let html = await Bun.file(`${ROOT}/${src}`).text();
-  
+
   // Replace the dev script tag with the bundled one.
   // We use a regex that matches the src attribute pattern.
   html = html.replace(
     /<script type="module" src="\/src\/.*?"><\/script>/,
-    `<script type="module" src="${scriptSrc}"></script>`
+    `<script type="module" src="${scriptSrc}"></script>`,
   );
-  
+
   // Fix the CSS path
   html = html.replace('href="/src/styles.css"', 'href="/assets/styles.css"');
-  
+
   await Bun.write(`${DIST}/${dest}`, html);
 };
 
 await copyHtml("index.html", "index.html", "./assets/main.js");
 await copyHtml("bench.html", "bench.html", "./assets/mount-bench.js");
-await copyHtml("counter-stress.html", "counter-stress.html", "./assets/counter-stress.js");
+await copyHtml(
+  "counter-stress.html",
+  "counter-stress.html",
+  "./assets/counter-stress.js",
+);
 
 // Copy CSS
 const css = await Bun.file(`${SRC}/styles.css`).text();

@@ -26,6 +26,7 @@ import {
   type ScenarioResult,
 } from "./harness.ts";
 import { createSinwanAdapter } from "./sinwan-bench.tsx";
+import { createSinwanVirtualAdapter } from "./sinwan-virtual-bench.tsx";
 
 const SMALL = 1_000;
 const LARGE = 10_000;
@@ -133,11 +134,10 @@ async function runScenarios(
   return results;
 }
 
-function renderReport(
+function renderReportHtml(
   framework: string,
   results: ScenarioResult[],
-  out: HTMLElement,
-): void {
+): string {
   const rows = results
     .map((r) => {
       const v = r.unit === "ops/sec" ? r.stats.mean : r.stats.median;
@@ -162,7 +162,7 @@ function renderReport(
         </tr>`;
     })
     .join("");
-  out.innerHTML = `
+  return `
     <h2>Results — ${framework}</h2>
     <table class="bench-report">
       <thead>
@@ -181,20 +181,36 @@ async function main(): Promise<void> {
   const stage = document.getElementById("stage") as HTMLElement;
   const runBtn = document.getElementById("run") as HTMLButtonElement;
 
+  // Check URL param for virtual mode
+  const urlParams = new URLSearchParams(window.location.search);
+  const useVirtual = urlParams.has("virtual");
+
   runBtn.addEventListener("click", async () => {
     runBtn.disabled = true;
     report.textContent = "Running…";
-    const adapter = createSinwanAdapter();
-    try {
-      const results = await runScenarios(adapter, stage);
-      renderReport(adapter.name, results, report);
-      // Machine-readable dump for CI / regression comparison.
-      (window as any).__BENCH_RESULTS__ = { framework: adapter.name, results };
-      console.log("BENCH", JSON.stringify(results, null, 2));
-    } finally {
-      stage.innerHTML = "";
-      runBtn.disabled = false;
+
+    const adapters: FrameworkAdapter[] = useVirtual
+      ? [createSinwanVirtualAdapter()]
+      : [createSinwanAdapter(), createSinwanVirtualAdapter()];
+
+    let allResults = "";
+    const allBenchResults: { framework: string; results: ScenarioResult[] }[] =
+      [];
+
+    for (const adapter of adapters) {
+      try {
+        const results = await runScenarios(adapter, stage);
+        allResults += renderReportHtml(adapter.name, results);
+        allBenchResults.push({ framework: adapter.name, results });
+        console.log("BENCH", adapter.name, JSON.stringify(results, null, 2));
+      } finally {
+        stage.innerHTML = "";
+      }
     }
+
+    report.innerHTML = allResults;
+    (window as any).__BENCH_RESULTS__ = allBenchResults;
+    runBtn.disabled = false;
   });
 }
 
