@@ -52,7 +52,7 @@ export const Sidebar = createComponent(() => {
         <div class="sidebar-header-text">
           <div class="logo">Sinwan</div>
         </div>
-        <span class="version-pill">v1.1.2</span>
+        <span class="version-pill">v1.2.1</span>
       </div>
       <p class="sidebar-description">
         A compact guide to the runtime, renderer, and data flow behind Sinwan.
