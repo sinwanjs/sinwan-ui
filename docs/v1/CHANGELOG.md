@@ -50,6 +50,10 @@ Sinwan 1.2.0 introduces a full React compatibility layer, virtualized list rende
 - Added regression tests for async component lifecycle hooks firing on updates.
 - Total tests expanded significantly with React integration and Virtual component coverage.
 
+### Planned [1.3.0]
+
+- Add Sinwan Flow — a complete visual flow system inspired by React Flow, featuring node-based editors, edge connections, zoom/pan controls, custom nodes, reactive graph rendering, and full SSR/hydration integration with the Sinwan runtime.
+
 ---
 
 ## [1.1.2] — Renderer Hardening & Portal Stability
