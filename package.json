@@ -1,6 +1,6 @@
 {
   "name": "sinwan",
-  "version": "1.1.2",
+  "version": "1.2.0",
   "description": "Sinwan — Reactive UI library with SSR, hydration, and fine-grained reactivity",
   "type": "commonjs",
   "types": "./dist/types.d.ts",

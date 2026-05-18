@@ -1,12 +1,17 @@
 import { Show } from "sinwan/component";
 import { Virtual } from "sinwan/component";
+import { Switch } from "sinwan/component";
 import { onUpdated } from "sinwan/component";
 import { For } from "sinwan/component";
+import { Match } from "sinwan/component";
 import { cc } from "sinwan/component";
+import { useFetch } from "sinwan/hook";
 import { Getter } from "sinwan/react-client";
+import { Suspense } from "sinwan/react-client";
 import { useState } from "sinwan/react-client";
 import { useEffect } from "sinwan/react-client";
-import { signal } from "sinwan/reactivity";
+import { Computed } from "sinwan/reactivity";
+import { signal, computed } from "sinwan/reactivity";
 
 export type Country = {
   name: string;
@@ -33,7 +38,7 @@ const Test = cc<{ count: Getter }>(({ count }) => {
   );
 });
 
-export const Counter = cc(async () => {
+export const Counter = cc(() => {
   const [count, setCount] = useState(0);
   const [items, setItems] = useState<number[]>([]);
   const test = signal(1);
@@ -46,13 +51,10 @@ export const Counter = cc(async () => {
     console.log("onUpdated", count());
   });
 
-  const response = await fetch("http://localhost:3002/countries", {
-    method: "GET",
-  });
-
-  const countries: CountriesResponse = await response.json();
-
-  console.log(countries);
+  const { data, isFetching, error } = useFetch(
+    "http://localhost:3002/countries",
+  ).json<CountriesResponse>();
+  console.log(data);
 
   const handleClick = () => {
     console.log("count", count());
@@ -73,9 +75,27 @@ export const Counter = cc(async () => {
       <p>You clicked the button {count} times.</p>
       <button onClick={handleClick}>Increment</button>
       <button onClick={handleReset}>Reset</button>
-      <Show when={countries}>
-        <CountryList countries={countries.countries} />
+      <Show when={isFetching}>
+        <p>Loading countries...</p>
       </Show>
+
+      <Show when={data} fallback={<p>Loading countries...</p>}>
+        <Switch>
+          <Match when={() => data.value?.countries.length === 0}>
+            <p>No countries found</p>
+          </Match>
+          <Match when={() => (data.value?.countries.length ?? 0) > 0}>
+            <CountryList
+              countries={computed(() => data.value?.countries || [])}
+            />
+          </Match>
+        </Switch>
+      </Show>
+
+      <Suspense fallback={<p>Loading async countries...</p>}>
+        <AsyncCountryTest />
+      </Suspense>
+
       <Virtual
         containerHeight={56}
         itemHeight={15}
@@ -105,11 +125,24 @@ export const Counter = cc(async () => {
   );
 });
 
-const CountryList = cc<{
-  countries: Country[];
-}>(({ countries }) => {
+const AsyncCountryTest = cc(async () => {
+  const response = await fetch("http://localhost:3002/countries").then(
+    (response) => response.json() as Promise<CountriesResponse>,
+  );
   return (
-    <For each={countries} key={(country) => country.name}>
+    <div>
+      <h2>Async countries test</h2>
+      <CountryList countries={response.countries} />
+    </div>
+  );
+});
+
+const CountryList = cc<{
+  countries: Country[] | Computed<Country[]>;
+}>(({ countries }) => {
+  const countriesArray = Array.isArray(countries) ? countries : countries.value;
+  return (
+    <For each={countriesArray} key={(country) => country.name}>
       {(country) => <div>{country.name}</div>}
     </For>
   );

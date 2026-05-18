@@ -1386,6 +1386,7 @@ function renderSuspenseBlock(
   let fallbackNode: MountedNode | null = null;
   let initialized = false;
   let disposed = false;
+  const asyncComponentResults = new Map<Function, unknown>();
 
   const disposeEffect = effect(() => {
     void retrySignal.value; // establish dependency for re-runs
@@ -1410,6 +1411,7 @@ function renderSuspenseBlock(
     const boundary = {
       promises: new Set<PromiseLike<unknown>>(),
       onResolved: () => {},
+      asyncComponentResults,
     };
 
     // Set up promise tracking so we can retry when they resolve.

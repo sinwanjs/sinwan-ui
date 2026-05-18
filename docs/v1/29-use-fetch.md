@@ -26,6 +26,77 @@ A plain `fetch()` call returns a promise. That works for one-off server code, bu
 
 ---
 
+## Async components vs reactive components
+
+`useFetch` is designed for **reactive components** where you need signals and reactivity. For **async components**, use native `fetch` with `Suspense` instead.
+
+### Reactive component with `useFetch`
+
+Use this when you need reactive state (loading, error, refetch, abort):
+
+```tsx
+import { cc } from "sinwan/component";
+import { useFetch } from "sinwan/hook";
+import { Show } from "sinwan/component";
+
+export const UserCard = cc(() => {
+  const user = useFetch<{ name: string; email: string }>("/api/user").json();
+
+  return (
+    <Show when={user.data} fallback={<p>Loading...</p>}>
+      <article>
+        <h2>{user.data.value!.name}</h2>
+        <p>{user.data.value!.email}</p>
+      </article>
+    </Show>
+  );
+});
+```
+
+### Async component with native `fetch`
+
+Use this for simple one-time data fetching without reactivity:
+
+```tsx
+import { cc } from "sinwan/component";
+import { Suspense } from "sinwan/react-client";
+
+const AsyncUserCard = cc(async () => {
+  const response = await fetch("/api/user").then(
+    (response) => response.json() as Promise<{ name: string; email: string }>,
+  );
+  return (
+    <article>
+      <h2>{response.name}</h2>
+      <p>{response.email}</p>
+    </article>
+  );
+});
+
+// Usage with Suspense
+export const App = cc(() => {
+  return (
+    <Suspense fallback={<p>Loading...</p>}>
+      <AsyncUserCard />
+    </Suspense>
+  );
+});
+```
+
+### When to use which
+
+| Use case                      | Approach                          |
+| ----------------------------- | --------------------------------- |
+| Need loading/error states     | `useFetch` in reactive component  |
+| Need refetch/abort capability | `useFetch` in reactive component  |
+| Reactive URL/payload          | `useFetch` in reactive component  |
+| Simple one-time fetch         | Native `fetch` in async component |
+| SSR with streaming            | Native `fetch` in async component |
+
+**Important:** `useFetch` returns reactive signals (`Signal<T>`, `Computed<T>`). These don't work in async components because async components execute once and resolve with JSX, without re-rendering capability.
+
+---
+
 ## Quick start
 
 ```tsx
@@ -39,12 +110,14 @@ export const UserCard = cc(() => {
     <section>
       {() => user.isFetching.value && <p>Loading...</p>}
       {() => user.error.value && <p>Failed: {user.error.value}</p>}
-      {() => user.data.value && (
-        <article>
-          <h2>{user.data.value.name}</h2>
-          <p>{user.data.value.email}</p>
-        </article>
-      )}
+      {() =>
+        user.data.value && (
+          <article>
+            <h2>{user.data.value.name}</h2>
+            <p>{user.data.value.email}</p>
+          </article>
+        )
+      }
     </section>
   );
 });
@@ -72,8 +145,11 @@ export const SearchButton = cc(() => {
   }).json<{ total: number }>();
 
   return (
-    <button disabled={() => result.isFetching.value} onClick={() => result.execute()}>
-      {() => result.isFetching.value ? "Searching..." : "Search"}
+    <button
+      disabled={() => result.isFetching.value}
+      onClick={() => result.execute()}
+    >
+      {() => (result.isFetching.value ? "Searching..." : "Search")}
     </button>
   );
 });
@@ -101,16 +177,16 @@ await result.execute(true);
 
 `useFetch` returns a stable object with reactive fields.
 
-| Field | Type | Meaning |
-| --- | --- | --- |
-| `data` | `Signal<T | null>` | Parsed response body or `initialData` |
-| `error` | `Signal<any>` | Last error message or transformed error |
-| `response` | `Signal<Response | null>` | Raw response object |
-| `statusCode` | `Signal<number | null>` | HTTP status code |
-| `aborted` | `Signal<boolean>` | Whether the active request was aborted |
-| `isFetching` | `Computed<boolean>` | `true` while a request is active |
-| `isFinished` | `Computed<boolean>` | `true` when no request is active |
-| `canAbort` | `Computed<boolean>` | `true` when abort is supported and a request is active |
+| Field        | Type                | Meaning                                                |
+| ------------ | ------------------- | ------------------------------------------------------ | ------------------------------------- |
+| `data`       | `Signal<T           | null>`                                                 | Parsed response body or `initialData` |
+| `error`      | `Signal<any>`       | Last error message or transformed error                |
+| `response`   | `Signal<Response    | null>`                                                 | Raw response object                   |
+| `statusCode` | `Signal<number      | null>`                                                 | HTTP status code                      |
+| `aborted`    | `Signal<boolean>`   | Whether the active request was aborted                 |
+| `isFetching` | `Computed<boolean>` | `true` while a request is active                       |
+| `isFinished` | `Computed<boolean>` | `true` when no request is active                       |
+| `canAbort`   | `Computed<boolean>` | `true` when abort is supported and a request is active |
 
 Example:
 
@@ -120,7 +196,9 @@ const todos = useFetch<Todo[]>("/api/todos").json<Todo[]>();
 return (
   <div>
     {() => todos.isFetching.value && <span>Loading</span>}
-    {() => todos.statusCode.value && <span>Status: {todos.statusCode.value}</span>}
+    {() =>
+      todos.statusCode.value && <span>Status: {todos.statusCode.value}</span>
+    }
     {() => todos.data.value?.map((todo) => <p>{todo.title}</p>)}
   </div>
 );
@@ -142,13 +220,13 @@ useFetch("/api/form").formData();
 
 Available parser helpers:
 
-| Helper | Result type |
-| --- | --- |
-| `json<JSON>()` | `JSON` |
-| `text()` | `string` |
-| `blob()` | `Blob` |
+| Helper          | Result type   |
+| --------------- | ------------- |
+| `json<JSON>()`  | `JSON`        |
+| `text()`        | `string`      |
+| `blob()`        | `Blob`        |
 | `arrayBuffer()` | `ArrayBuffer` |
-| `formData()` | `FormData` |
+| `formData()`    | `FormData`    |
 
 If you do not choose a parser, `text()` is the default.
 
@@ -168,30 +246,26 @@ await created.execute();
 
 Available method helpers:
 
-| Helper | HTTP method |
-| --- | --- |
-| `get()` | `GET` |
-| `post(payload?, type?)` | `POST` |
-| `put(payload?, type?)` | `PUT` |
-| `delete(payload?, type?)` | `DELETE` |
-| `patch(payload?, type?)` | `PATCH` |
-| `head(payload?, type?)` | `HEAD` |
-| `options(payload?, type?)` | `OPTIONS` |
+| Helper                     | HTTP method |
+| -------------------------- | ----------- |
+| `get()`                    | `GET`       |
+| `post(payload?, type?)`    | `POST`      |
+| `put(payload?, type?)`     | `PUT`       |
+| `delete(payload?, type?)`  | `DELETE`    |
+| `patch(payload?, type?)`   | `PATCH`     |
+| `head(payload?, type?)`    | `HEAD`      |
+| `options(payload?, type?)` | `OPTIONS`   |
 
 When the payload is a plain object or array and no payload type is supplied, Sinwan serializes it as JSON and sets `Content-Type: application/json`.
 
 ```ts
-useFetch("/api/posts", { immediate: false })
-  .post({ title: "Hello" })
-  .json();
+useFetch("/api/posts", { immediate: false }).post({ title: "Hello" }).json();
 ```
 
 For explicit payload types, pass the second argument:
 
 ```ts
-useFetch("/api/message", { immediate: false })
-  .post("hello", "text")
-  .text();
+useFetch("/api/message", { immediate: false }).post("hello", "text").text();
 ```
 
 You may also pass a full content type:
@@ -209,15 +283,12 @@ useFetch("/api/upload", { immediate: false })
 The second argument can be native `RequestInit`:
 
 ```ts
-const profile = useFetch<Profile>(
-  "/api/profile",
-  {
-    credentials: "include",
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
+const profile = useFetch<Profile>("/api/profile", {
+  credentials: "include",
+  headers: {
+    Authorization: `Bearer ${token}`,
   },
-).json<Profile>();
+}).json<Profile>();
 ```
 
 Or it can be `UseFetchOptions`:
@@ -252,30 +323,32 @@ interface UseFetchOptions {
   initialData?: any;
   timeout?: number;
   updateDataOnError?: boolean;
-  beforeFetch?: (ctx: BeforeFetchContext) =>
+  beforeFetch?: (
+    ctx: BeforeFetchContext,
+  ) =>
     | Promise<Partial<BeforeFetchContext> | void>
     | Partial<BeforeFetchContext>
     | void;
-  afterFetch?: (ctx: AfterFetchContext) =>
-    | Promise<Partial<AfterFetchContext>>
-    | Partial<AfterFetchContext>;
-  onFetchError?: (ctx: OnFetchErrorContext) =>
-    | Promise<Partial<OnFetchErrorContext>>
-    | Partial<OnFetchErrorContext>;
+  afterFetch?: (
+    ctx: AfterFetchContext,
+  ) => Promise<Partial<AfterFetchContext>> | Partial<AfterFetchContext>;
+  onFetchError?: (
+    ctx: OnFetchErrorContext,
+  ) => Promise<Partial<OnFetchErrorContext>> | Partial<OnFetchErrorContext>;
 }
 ```
 
-| Option | Default | Meaning |
-| --- | --- | --- |
-| `fetch` | `globalThis.fetch` | Custom fetch implementation |
-| `immediate` | `true` | Execute automatically after setup |
-| `refetch` | `false` | Refetch when reactive URL or payload changes |
-| `initialData` | `null` | Initial value for `data` |
-| `timeout` | `0` | Abort after N milliseconds; `0` disables timeout |
-| `updateDataOnError` | `false` | Allow error callbacks to update `data` |
-| `beforeFetch` | `undefined` | Transform or cancel before dispatch |
-| `afterFetch` | `undefined` | Transform successful response data |
-| `onFetchError` | `undefined` | Transform failure state |
+| Option              | Default            | Meaning                                          |
+| ------------------- | ------------------ | ------------------------------------------------ |
+| `fetch`             | `globalThis.fetch` | Custom fetch implementation                      |
+| `immediate`         | `true`             | Execute automatically after setup                |
+| `refetch`           | `false`            | Refetch when reactive URL or payload changes     |
+| `initialData`       | `null`             | Initial value for `data`                         |
+| `timeout`           | `0`                | Abort after N milliseconds; `0` disables timeout |
+| `updateDataOnError` | `false`            | Allow error callbacks to update `data`           |
+| `beforeFetch`       | `undefined`        | Transform or cancel before dispatch              |
+| `afterFetch`        | `undefined`        | Transform successful response data               |
+| `onFetchError`      | `undefined`        | Transform failure state                          |
 
 ---
 
@@ -379,14 +452,15 @@ stopFinally();
 Manual abort:
 
 ```tsx
-const upload = useFetch("/api/upload", { immediate: false })
-  .post(file)
-  .text();
+const upload = useFetch("/api/upload", { immediate: false }).post(file).text();
 
 return (
   <div>
     <button onClick={() => upload.execute()}>Upload</button>
-    <button disabled={() => !upload.canAbort.value} onClick={() => upload.abort()}>
+    <button
+      disabled={() => !upload.canAbort.value}
+      onClick={() => upload.abort()}
+    >
       Cancel
     </button>
   </div>
@@ -423,8 +497,13 @@ export const UserLookup = cc(() => {
 
   return (
     <section>
-      <input value={id} onInput={(event) => (id.value = event.currentTarget.value)} />
-      {() => user.data.value && <pre>{JSON.stringify(user.data.value, null, 2)}</pre>}
+      <input
+        value={id}
+        onInput={(event) => (id.value = event.currentTarget.value)}
+      />
+      {() =>
+        user.data.value && <pre>{JSON.stringify(user.data.value, null, 2)}</pre>
+      }
     </section>
   );
 });
@@ -515,10 +594,10 @@ createFetch({
 });
 ```
 
-| Value | Behavior |
-| --- | --- |
-| `chain` | Run default callback, then local callback, merging returned context |
-| `overwrite` | Use the last callback that exists |
+| Value       | Behavior                                                            |
+| ----------- | ------------------------------------------------------------------- |
+| `chain`     | Run default callback, then local callback, merging returned context |
+| `overwrite` | Use the last callback that exists                                   |
 
 `chain` is the default.
 
@@ -581,17 +660,38 @@ interface UseFetchReturn<T> {
   onFetchError: EventHookOn<any>;
   onFetchFinally: EventHookOn<any>;
   get: () => UseFetchReturn<T> & PromiseLike<UseFetchReturn<T>>;
-  post: (payload?: MaybeReactive<unknown>, type?: string) => UseFetchReturn<T> & PromiseLike<UseFetchReturn<T>>;
-  put: (payload?: MaybeReactive<unknown>, type?: string) => UseFetchReturn<T> & PromiseLike<UseFetchReturn<T>>;
-  delete: (payload?: MaybeReactive<unknown>, type?: string) => UseFetchReturn<T> & PromiseLike<UseFetchReturn<T>>;
-  patch: (payload?: MaybeReactive<unknown>, type?: string) => UseFetchReturn<T> & PromiseLike<UseFetchReturn<T>>;
-  head: (payload?: MaybeReactive<unknown>, type?: string) => UseFetchReturn<T> & PromiseLike<UseFetchReturn<T>>;
-  options: (payload?: MaybeReactive<unknown>, type?: string) => UseFetchReturn<T> & PromiseLike<UseFetchReturn<T>>;
-  json: <JSON = any>() => UseFetchReturn<JSON> & PromiseLike<UseFetchReturn<JSON>>;
+  post: (
+    payload?: MaybeReactive<unknown>,
+    type?: string,
+  ) => UseFetchReturn<T> & PromiseLike<UseFetchReturn<T>>;
+  put: (
+    payload?: MaybeReactive<unknown>,
+    type?: string,
+  ) => UseFetchReturn<T> & PromiseLike<UseFetchReturn<T>>;
+  delete: (
+    payload?: MaybeReactive<unknown>,
+    type?: string,
+  ) => UseFetchReturn<T> & PromiseLike<UseFetchReturn<T>>;
+  patch: (
+    payload?: MaybeReactive<unknown>,
+    type?: string,
+  ) => UseFetchReturn<T> & PromiseLike<UseFetchReturn<T>>;
+  head: (
+    payload?: MaybeReactive<unknown>,
+    type?: string,
+  ) => UseFetchReturn<T> & PromiseLike<UseFetchReturn<T>>;
+  options: (
+    payload?: MaybeReactive<unknown>,
+    type?: string,
+  ) => UseFetchReturn<T> & PromiseLike<UseFetchReturn<T>>;
+  json: <JSON = any>() => UseFetchReturn<JSON> &
+    PromiseLike<UseFetchReturn<JSON>>;
   text: () => UseFetchReturn<string> & PromiseLike<UseFetchReturn<string>>;
   blob: () => UseFetchReturn<Blob> & PromiseLike<UseFetchReturn<Blob>>;
-  arrayBuffer: () => UseFetchReturn<ArrayBuffer> & PromiseLike<UseFetchReturn<ArrayBuffer>>;
-  formData: () => UseFetchReturn<FormData> & PromiseLike<UseFetchReturn<FormData>>;
+  arrayBuffer: () => UseFetchReturn<ArrayBuffer> &
+    PromiseLike<UseFetchReturn<ArrayBuffer>>;
+  formData: () => UseFetchReturn<FormData> &
+    PromiseLike<UseFetchReturn<FormData>>;
 }
 ```
 

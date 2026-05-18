@@ -949,6 +949,7 @@ function hydrateSuspense(
   let disposed = false;
   let fallbackNode: MountedNode | null = null;
   let contentNodes: MountedNode[] = [];
+  const asyncComponentResults = new Map<Function, unknown>();
 
   const dispose = effect(() => {
     void retrySignal.value;
@@ -962,6 +963,7 @@ function hydrateSuspense(
       const boundary = {
         promises: new Set<PromiseLike<unknown>>(),
         onResolved: () => {},
+        asyncComponentResults,
       };
       let retryScheduled = false;
       boundary.onResolved = () => {
@@ -1041,6 +1043,7 @@ function hydrateSuspense(
     const boundary = {
       promises: new Set<PromiseLike<unknown>>(),
       onResolved: () => {},
+      asyncComponentResults,
     };
     let retryScheduled = false;
     boundary.onResolved = () => {

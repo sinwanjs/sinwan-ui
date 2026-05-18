@@ -8,6 +8,50 @@ All notable changes to **Sinwan** are documented in this file. The format follow
 
 No unreleased changes.
 
+---
+
+## [1.2.0] — React Integration, Async Suspense & Data Fetching
+
+Sinwan 1.2.0 introduces a full React compatibility layer, virtualized list rendering, data-fetching hooks, and major SSR/hydration improvements for async components.
+
+### Added
+
+- **React Integration Layer**: Complete React API compatibility via `sinwan/react` (`createRoot`, `hydrateRoot`, `useState`, `useEffect`, `useContext`, `useMemo`, `useCallback`, `Suspense`, `memo`, `createPortal`, `flushSync`, `StrictMode`, `Activity`, `ViewTransition`, `useActionState`, `useDeferredValue`, `useImperativeHandle`, `useInsertionEffect`, `useLayoutEffect`, `useSyncExternalStore`, `useTitle`, `useFormStatus`, `useOptimistic`, `Resource Hints`, `prerender`, `renderToString`, `renderToStaticMarkup`, `renderToReadableStream`, `resume`, `resumeAndPrerender`).
+- **`<Virtual>` Component**: Virtualized list rendering with windowing support for high-performance long lists.
+- **`useFetch` Hook**: Reactive data fetching with automatic JSON/text parsing, HTTP methods, error handling, abort/timeout support, and refetch behavior.
+- **`createFetch` Factory**: Configurable fetch instance with `baseUrl`, default options merging, and callback chaining.
+- **Bun Plugin & Tree-shaking**: `sinwan()` unified Vite/Rollup plugin with JSX transform, automatic import source, and dead-code elimination for unused exports.
+- **`<ErrorBoundary>` Hydration**: Full client hydration support for error boundaries with proper lifecycle recovery.
+- **SSR Shell Rendering**: New `renderShell()` and `streamShell()` APIs for streaming HTML shell generation with configurable scripts and stylesheets (`ShellOptions`, `ShellScript`, `ShellStylesheet`).
+- **`<Suspense>` Async Component Caching**: `asyncComponentResults` cache inside Suspense boundaries prevents re-execution of resolved async components during hydration and re-renders.
+- **`trackPromise` Mechanism**: Promise state tracking (`pending` / `fulfilled` / `rejected`) integrated with `getActiveSuspenseBoundary()` for deterministic async rendering.
+- **`on()` Reactive Helper**: Explicit dependency tracking for `effect()` and `computed()` bodies with single or array deps, value change callbacks, and optional deferred initial run.
+- **`observable()` Interop**: Converts a reactive getter into an Observable-compatible object (`subscribe()`, `[Symbol.observable]`) for seamless integration with RxJS and other Observable libraries.
+- **Reactive Store (`createStore`)**: Fine-grained immutable reactive store with proxy-based reads, typed path-based setters (`setStore('path', 'to', 'key', value)`), and partial merge / function updater support.
+- **`createMutable()` / `modifyMutable()`**: Mutable reactive store proxy allowing direct property assignment with automatic fine-grained change tracking.
+- **Store Modifiers**: `produce()` (immer-like draft mutations) and `reconcile()` (deep diff merge) for advanced store transformations.
+- **`unwrap()`**: Extract the raw underlying value from any store proxy, bypassing reactivity.
+
+### Changed
+
+- SSR route handlers now support simulated async delays for realistic server-side data fetching in test apps.
+- Build pipeline migrated to Bun with dual ESM/CJS development and production bundles.
+- Documentation v1 expanded with `useFetch` API reference, migration guides, and React integration docs.
+
+### Fixed
+
+- **Virtual Component DOM Reordering**: Fixed incorrect node ordering when virtualized items are inserted, removed, or reordered.
+- **Component Unmounting Optimizations**: Reduced overhead during rapid mount/unmount cycles with streamlined cleanup.
+- **For/Index Closure Captures**: Fixed stale closures in reactive list rendering when item accessors are used inside nested callbacks.
+
+### Internal
+
+- Added comprehensive test suite for `useFetch` and `createFetch` (343+ lines).
+- Added regression tests for async component lifecycle hooks firing on updates.
+- Total tests expanded significantly with React integration and Virtual component coverage.
+
+---
+
 ## [1.1.2] — Renderer Hardening & Portal Stability
 
 Sinwan 1.1.2 focuses on hardening the client renderer for high-frequency churn scenarios, improving style normalization, and ensuring deterministic Portal reordering.
