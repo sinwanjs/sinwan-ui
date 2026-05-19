@@ -177,6 +177,43 @@ The corresponding `hydrate()` call sees the resolved data and produces a matchin
 
 ---
 
+## Virtual component hydration
+
+The `<Virtual>` component has special hydration logic for windowed list rendering. During SSR, it renders:
+
+1. A container `div` with fixed `height` and `overflow: auto`
+2. A content `div` with absolute positioning and total height set to `items.length * itemHeight`
+3. Only the initially visible items (based on `scrollTop`, `itemHeight`, `containerHeight`, `overscan`, `minRendered`) as absolutely-positioned wrapper `div`s at their correct `top` offsets
+
+During hydration, the Virtual component:
+
+- Adopts the server-rendered container and content `div`s
+- Hydrates only the initially visible item wrappers using the standard hydration cursor
+- Builds a `keyMap` (type `Map<string | number | symbol, VirtualEntry>`) storing each mounted node, its wrapper element, and its current index for efficient reuse
+- Attaches a **scroll event listener** with `{ passive: true }` for performance
+- Sets up a **scroll reactivity effect** that:
+  - Re-reads `props.each` on each tick (to handle signal-based list updates)
+  - Computes the new visible window using `resolveRange(scrollTop, currentList.length)`
+  - Reuses existing keyed items from `keyMap`, patching their `style.top` if their index shifted
+  - Creates new items for keys not in the map using `renderElementToDOM`
+  - Removes items no longer in the visible window
+  - Swaps the registry: `keyMap.clear()` then repopulates from `newKeyMap`
+- Stores **cleanup functions** in `mounted.eventCleanups`: scroll listener removal and scroll effect disposal
+
+The VirtualEntry interface ensures position updates during reuse:
+
+```ts
+interface VirtualEntry {
+  mounted: MountedNode;
+  wrapperEl: HTMLElement;
+  currentIndex: number;
+}
+```
+
+When an item is reused at a different index, its `wrapperEl.style.top` is patched to the new position and `currentIndex` is updated.
+
+---
+
 ## API summary
 
 ```ts
