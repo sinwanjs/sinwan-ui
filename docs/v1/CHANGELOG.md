@@ -10,6 +10,26 @@ No unreleased changes.
 
 ---
 
+## [1.2.2] — Virtual Component Hydration Hardening
+
+Sinwan 1.2.2 production-hardens the `<Virtual>` component hydration with critical bug fixes for memory leaks, type safety, scroll reactivity, and registry persistence.
+
+### Fixed
+
+- **Effect Leak**: Fixed scroll effect dispose function being discarded. The dispose fn is now stored and registered in `mounted.eventCleanups` alongside the scroll listener cleanup, ensuring proper teardown on unmount.
+- **Unsafe Cast on Registry Seed**: Added type guards before casting hydrated nodes to `MountedElement` during initial keyMap population, preventing runtime errors when hydrateNode returns non-element nodes.
+- **Unsafe Cast on New Item Mount**: Added type guards after `renderElementToDOM` to safely cast to `MountedElement` before accessing the wrapper element, preventing crashes when new items are created during scroll.
+- **Position Not Patched on Reuse**: Changed keyMap value type to `VirtualEntry` interface storing `mounted`, `wrapperEl`, and `currentIndex`. Items now correctly update their `style.top` position when their index shifts during reuse.
+- **Stale List Capture**: Fixed scroll effect closing over frozen `list` from hydration time. The effect now re-reads `props.each` on each tick via `readReactive()`, properly handling signal-based list updates.
+- **Extract Shared resolveRange**: Extracted duplicated range calculation logic into a shared `resolveRange(scrollTop, length)` function, eliminating code duplication between initial hydration and scroll effect.
+- **Passive Scroll Listener**: Added `{ passive: true }` to scroll event listener for improved scroll performance.
+- **RenderElementToDOM Usage**: Replaced `renderNodeToDOM` with direct `renderElementToDOM` call for new item creation inside the scroll effect, matching the expected SinwanElement input type.
+- **Registry Persistence**: Fixed reused entries vanishing from keyMap after first scroll tick. Reused entries are now added to `newKeyMap` during the reuse branch, ensuring they persist across scroll updates.
+- **Dynamic List Length Support**: Fixed `resolveRange` closing over stale `list.length`. The function now accepts a `length` parameter, allowing proper range calculation when the list grows dynamically via signal updates.
+- **Code Quality**: Changed `let remaining` to `const remaining` in `resolveRange` since the value is never reassigned after initialization.
+
+---
+
 ## [1.2.1] — Computed Tracking Fix
 
 Fixed an issue where computed dependencies were not being tracked correctly in certain scenarios, particularly within loops.

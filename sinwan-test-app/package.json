@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "bun --hot src/index.ts",
+    "spa": "bun --hot src/spa/server.ts",
     "start": "NODE_ENV=production bun src/index.ts",
     "build": "bun run build.ts"
   },

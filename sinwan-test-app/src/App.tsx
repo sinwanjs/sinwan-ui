@@ -2,6 +2,7 @@ import { cc, For, Show, type Reactive } from "sinwan/component";
 import { useFetch } from "sinwan/hook";
 import {
   computed,
+  effect,
   signal,
   type Computed,
   type Signal,
@@ -25,14 +26,15 @@ const formatSize = (bytes: number) => {
 };
 
 export const App = cc(() => {
-  const { data, isFetching, error } = useFetch("/api/dbs").json<Databases>();
+  const { data, isFetching, error, onFetchResponse } =
+    useFetch("/api/dbs").json<Databases>();
 
   const databases = computed<Database[]>(() => data.value?.databases || []);
-  console.log(
-    "Fetched databases:",
-    computed(() => data.value?.databases),
-  );
 
+  const dispose = effect(() => {
+    console.log("Fetched databases:", data.value?.databases);
+  });
+  
   const selected = signal<string>("");
 
   const selectedDb = computed(() => {

@@ -36,7 +36,7 @@ import {
 } from "../renderer/render-control-flow.ts";
 import { renderNodeToDOM } from "../renderer/render-children.ts";
 import { renderElementToDOM } from "../renderer/render-element.ts";
-import { removeMountedNode } from "../renderer/unmount.ts";
+import { removeMountedNode, getMountedDomNodes } from "../renderer/unmount.ts";
 import type {
   MountedElement,
   MountedReactiveBlock,
@@ -415,7 +415,17 @@ function hydrateControlFlow(
     const content = when
       ? resolveShowChildren(element, when)
       : (element.props as any).fallback;
-    return hydrateContent(content, cursor);
+    const initialMounted = hydrateContent(content, cursor);
+    return makeReactiveBlock(
+      initialMounted,
+      () => {
+        const newWhen = readReactive((element.props as any).when);
+        return newWhen
+          ? resolveShowChildren(element, newWhen)
+          : (element.props as any).fallback;
+      },
+      when,
+    );
   }
 
   if (isForElement(element)) {
@@ -424,26 +434,35 @@ function hydrateControlFlow(
       fallback?: SinwanNode;
       children?: (item: unknown, index: () => number) => SinwanNode;
     };
-    const items = readReactive(props.each);
-    // replace map with for loop to avoid creating an intermediate array (critical for hydration)
-    const children =
-      Array.isArray(items) && typeof props.children === "function"
-        ? (() => {
-            const result: SinwanNode[] = [];
-            for (let i = 0; i < items.length; i++) {
-              const index = i;
-              result.push(props.children!(items[i], () => index));
-            }
-            return result;
-          })()
-        : props.fallback
-          ? [props.fallback]
-          : [];
-    return hydrateArray(children, cursor);
+    const resolveChildren = () => {
+      const items = readReactive(props.each);
+      if (Array.isArray(items) && typeof props.children === "function") {
+        const result: SinwanNode[] = [];
+        for (let i = 0; i < items.length; i++) {
+          const index = i;
+          result.push(props.children!(items[i], () => index));
+        }
+        return result;
+      }
+      return props.fallback ? [props.fallback] : [];
+    };
+    const children = resolveChildren();
+    const initialMounted = hydrateArray(children, cursor);
+    return makeReactiveBlock(
+      initialMounted,
+      () => resolveChildren() as unknown as SinwanNode,
+      readReactive(props.each),
+    );
   }
 
   if (isSwitchElement(element)) {
-    return hydrateContent(resolveSwitchContent(element), cursor);
+    const content = resolveSwitchContent(element);
+    const initialMounted = hydrateContent(content, cursor);
+    return makeReactiveBlock(
+      initialMounted,
+      () => resolveSwitchContent(element),
+      content,
+    );
   }
 
   if (isIndexElement(element)) {
@@ -452,33 +471,58 @@ function hydrateControlFlow(
       fallback?: SinwanNode;
       children?: (item: () => unknown, index: number) => SinwanNode;
     };
-    const items = readReactive(props.each);
-    // replace map with for loop to avoid creating an intermediate array (critical for hydration)
-    const children =
-      Array.isArray(items) && typeof props.children === "function"
-        ? (() => {
-            const result: SinwanNode[] = [];
-            for (let i = 0; i < items.length; i++) {
-              const item = items[i];
-              result.push(props.children!(() => item, i));
-            }
-            return result;
-          })()
-        : props.fallback
-          ? [props.fallback]
-          : [];
-    return hydrateArray(children, cursor);
+    const resolveChildren = () => {
+      const items = readReactive(props.each);
+      if (Array.isArray(items) && typeof props.children === "function") {
+        const result: SinwanNode[] = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i];
+          result.push(props.children!(() => item, i));
+        }
+        return result;
+      }
+      return props.fallback ? [props.fallback] : [];
+    };
+    const children = resolveChildren();
+    const initialMounted = hydrateArray(children, cursor);
+    return makeReactiveBlock(
+      initialMounted,
+      () => resolveChildren() as unknown as SinwanNode,
+      readReactive(props.each),
+    );
   }
 
   if (isKeyElement(element)) {
     const key = readReactive((element.props as any).when);
-    return hydrateContent(resolveKeyChildren(element, key), cursor);
+    const initialMounted = hydrateContent(
+      resolveKeyChildren(element, key),
+      cursor,
+    );
+    return makeReactiveBlock(
+      initialMounted,
+      () => {
+        const newKey = readReactive((element.props as any).when);
+        return resolveKeyChildren(element, newKey);
+      },
+      key,
+    );
   }
 
   if (isDynamicElement(element)) {
     const tag = readReactive((element.props as any).component);
     const dynamic = createDynamicElement(element, tag);
-    return dynamic ? hydrateElement(dynamic, cursor) : hydrateArray([], cursor);
+    const initialMounted = dynamic
+      ? hydrateElement(dynamic, cursor)
+      : hydrateArray([], cursor);
+    return makeReactiveBlock(
+      initialMounted,
+      () => {
+        const newTag = readReactive((element.props as any).component);
+        const newDynamic = createDynamicElement(element, newTag);
+        return newDynamic;
+      },
+      tag,
+    );
   }
 
   if (isVirtualElement(element)) {
@@ -505,37 +549,47 @@ function hydrateControlFlow(
     const overscan = props.overscan ?? 3;
     const minRendered = props.minRendered ?? 0;
 
-    let startIndex = 0;
-    let endIndex = Math.ceil(containerHeight / itemHeight);
-    startIndex = Math.max(0, startIndex - overscan);
-    endIndex = Math.min(list.length, endIndex + overscan);
-
-    if (minRendered > 0) {
-      const visibleCount = endIndex - startIndex;
-      if (visibleCount < minRendered) {
-        const deficit = minRendered - visibleCount;
-        const expandStart = Math.min(startIndex, Math.floor(deficit / 2));
-        const expandEnd = Math.min(
-          list.length - endIndex,
-          Math.ceil(deficit / 2),
-        );
-        let remaining = deficit - expandStart - expandEnd;
-        startIndex -= expandStart;
-        endIndex += expandEnd;
-        if (remaining > 0) {
-          if (endIndex < list.length) {
-            endIndex = Math.min(list.length, endIndex + remaining);
-          } else if (startIndex > 0) {
-            startIndex = Math.max(0, startIndex - remaining);
-          }
-        }
-      }
-    }
+    let startIndex: number;
+    let endIndex: number;
 
     const renderChild = props.children;
     if (typeof renderChild !== "function") {
       return hydrateArray([], cursor);
     }
+
+    // Extract shared range calculation logic
+    const resolveRange = (
+      scrollTop: number,
+      length: number,
+    ): readonly [number, number] => {
+      let s = Math.floor(scrollTop / itemHeight);
+      let e = Math.ceil((scrollTop + containerHeight) / itemHeight);
+      s = Math.max(0, s - overscan);
+      e = Math.min(length, e + overscan);
+      if (minRendered > 0) {
+        const visibleCount = e - s;
+        if (visibleCount < minRendered) {
+          const deficit = minRendered - visibleCount;
+          const expandStart = Math.min(s, Math.floor(deficit / 2));
+          const expandEnd = Math.min(length - e, Math.ceil(deficit / 2));
+          const remaining = deficit - expandStart - expandEnd;
+          s -= expandStart;
+          e += expandEnd;
+          if (remaining > 0) {
+            if (e < length) {
+              e = Math.min(length, e + remaining);
+            } else if (s > 0) {
+              s = Math.max(0, s - remaining);
+            }
+          }
+        }
+      }
+      return [s, e] as const;
+    };
+
+    const initialRange = resolveRange(0, list.length);
+    startIndex = initialRange[0];
+    endIndex = initialRange[1];
 
     // Advance past the container div rendered by the server
     const containerDiv = advance(cursor) as HTMLElement;
@@ -571,6 +625,22 @@ function hydrateControlFlow(
       );
     }
 
+    const keyFn = props.key;
+    interface VirtualEntry {
+      mounted: MountedNode;
+      wrapperEl: HTMLElement;
+      currentIndex: number;
+    }
+    const keyMap = new Map<string | number | symbol, VirtualEntry>();
+    for (let i = startIndex; i < endIndex; i++) {
+      const key = keyFn ? (keyFn(list[i], i) ?? i) : i;
+      const m = children[i - startIndex];
+      if (m.type !== "element") continue;
+      const wrapperEl = (m as MountedElement).node as HTMLElement;
+      if (!wrapperEl) continue;
+      keyMap.set(key, { mounted: m, wrapperEl, currentIndex: i });
+    }
+
     const contentMounted: MountedElement = {
       type: "element",
       node: contentDiv,
@@ -580,7 +650,7 @@ function hydrateControlFlow(
       refCleanup: null,
     };
 
-    return {
+    const mounted: MountedElement = {
       type: "element",
       node: containerDiv,
       children: [contentMounted],
@@ -588,6 +658,105 @@ function hydrateControlFlow(
       attrDisposers: null,
       refCleanup: null,
     };
+
+    // Setup scroll reactivity after hydration
+    if (typeof window !== "undefined") {
+      const scrollSignal = signal(0);
+      const scrollHandler = () => {
+        scrollSignal.value = containerDiv.scrollTop;
+      };
+      containerDiv.addEventListener("scroll", scrollHandler, { passive: true });
+
+      // Store cleanup on the mounted element
+      const scrollCleanup = () =>
+        containerDiv.removeEventListener("scroll", scrollHandler);
+
+      // Effect that updates visible items on scroll
+      let initialized = false;
+      const disposeScrollEffect = effect(() => {
+        const scrollTop = scrollSignal.value;
+
+        // Re-read list to handle signal updates
+        const currentList = (() => {
+          const items = readReactive(props.each);
+          return Array.isArray(items) ? items : [];
+        })();
+
+        // Skip first run - DOM is already hydrated
+        if (!initialized) {
+          initialized = true;
+          // Just set the total height on first run
+          const totalHeight = currentList.length * itemHeight;
+          contentDiv.style.height = `${totalHeight}px`;
+          return;
+        }
+        const totalHeight = currentList.length * itemHeight;
+        contentDiv.style.height = `${totalHeight}px`;
+
+        const [newStart, newEnd] = resolveRange(scrollTop, currentList.length);
+
+        // Keyed node reuse: keep existing nodes, create only new ones, remove old ones
+        const newChildren: MountedNode[] = [];
+        const newKeyMap = new Map<string | number | symbol, VirtualEntry>();
+
+        for (let i = newStart; i < newEnd; i++) {
+          const key = keyFn ? (keyFn(currentList[i], i) ?? i) : i;
+          const entry = keyMap.get(key);
+          if (entry) {
+            if (entry.currentIndex !== i) {
+              entry.wrapperEl.style.top = `${i * itemHeight}px`;
+              entry.currentIndex = i;
+            }
+            newChildren.push(entry.mounted);
+            keyMap.delete(key);
+            newKeyMap.set(key, entry);
+          } else {
+            const childNode = renderChild!(currentList[i], () => i);
+            const wrapped: SinwanElement = {
+              tag: "div",
+              props: {
+                style: `position:absolute;top:${i * itemHeight}px;left:0;right:0`,
+              },
+              children: normalizeContent(childNode),
+            };
+            const rendered = renderElementToDOM(
+              wrapped,
+              contentDiv,
+              null,
+              null,
+            );
+            if (rendered.type !== "element") {
+              newChildren.push(rendered);
+              continue;
+            }
+            const wrapperEl = (rendered as MountedElement).node as HTMLElement;
+            newChildren.push(rendered);
+            newKeyMap.set(key, {
+              mounted: rendered,
+              wrapperEl,
+              currentIndex: i,
+            });
+          }
+        }
+
+        // Remove nodes that are no longer in the visible window
+        for (const [, entry] of keyMap) {
+          removeMountedNode(entry.mounted);
+        }
+
+        contentMounted.children = newChildren;
+        // Update keyMap for next scroll effect run
+        keyMap.clear();
+        for (const [k, v] of newKeyMap) {
+          keyMap.set(k, v);
+        }
+      });
+
+      // Store cleanup on the mounted element
+      mounted.eventCleanups = [scrollCleanup, disposeScrollEffect];
+    }
+
+    return mounted;
   }
 
   if (isErrorBoundaryElement(element)) {
@@ -1226,4 +1395,97 @@ function hydrateViewTransition(
   };
 
   return mounted;
+}
+
+/**
+ * Wraps an already-hydrated MountedNode in a reactive block that re-renders
+ * when the source signal changes. This makes control-flow elements (Show, Key,
+ * Dynamic) reactive after hydration.
+ *
+ * Strategy:
+ * 1. Insert anchor comments around the existing hydrated DOM
+ * 2. Create a MountedReactiveBlock containing the hydrated content
+ * 3. Set up an effect that watches the source signal
+ * 4. On change: clear children, render new content between anchors
+ */
+function makeReactiveBlock(
+  initialMounted: MountedNode,
+  getContent: () => SinwanNode | null,
+  _initialValue: unknown,
+): MountedNode {
+  // Get all DOM nodes belonging to the initial hydrated content
+  const domNodes = getMountedDomNodes(initialMounted);
+
+  if (domNodes.length === 0) {
+    // No DOM to wrap - just return the original mounted node
+    return initialMounted;
+  }
+
+  const firstNode = domNodes[0];
+  const parent = firstNode.parentNode;
+  if (!parent) return initialMounted;
+
+  // Insert anchor comments around the hydrated content
+  const startAnchor = (parent.ownerDocument || document).createComment(
+    "Sinwan-hyd-b",
+  );
+  const endAnchor = (parent.ownerDocument || document).createComment(
+    "/Sinwan-hyd-b",
+  );
+
+  parent.insertBefore(startAnchor, firstNode);
+  const lastNode = domNodes[domNodes.length - 1];
+  if (lastNode.nextSibling) {
+    parent.insertBefore(endAnchor, lastNode.nextSibling);
+  } else {
+    parent.appendChild(endAnchor);
+  }
+
+  const owner = getCurrentInstance();
+  let isFirstRun = true;
+
+  const block: MountedReactiveBlock = {
+    type: "reactive-block",
+    dispose: () => {},
+    children: [initialMounted],
+    startAnchor,
+    endAnchor,
+  };
+
+  const disposeEffect = effect(() => {
+    // Calling getContent() reads reactive values, tracking dependencies
+    const content = getContent();
+
+    // Skip first run - DOM is already hydrated
+    if (isFirstRun) {
+      isFirstRun = false;
+      return;
+    }
+
+    try {
+      // Clear existing children DOM (between anchors)
+      clearChildren(block);
+
+      // Render new content between anchors
+      if (content != null) {
+        const newMounted = renderBlockContent(
+          content as SinwanNode,
+          parent,
+          endAnchor,
+          null,
+          owner,
+        );
+        block.children = newMounted;
+      } else {
+        block.children = [];
+      }
+
+      fireMountedAndQueueUpdated(owner);
+    } catch (e) {
+      console.error("[Sinwan hydration reactive block]", e);
+    }
+  });
+
+  block.dispose = disposeEffect;
+  return block;
 }
