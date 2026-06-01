@@ -1,0 +1,13 @@
+{
+  "name": "sinwan-ui",
+  "version": "0.1.0",
+  "description": "Component library of the Sinwan ecosystem, providing a comprehensive set of customizable, accessible, and production-ready UI components for modern applications",
+  "module": "src/index.ts",
+  "type": "module",
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}
