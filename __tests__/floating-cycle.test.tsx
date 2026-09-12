@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import {
   Dialog,
   DialogClose,
@@ -11,6 +13,12 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "../src/components/ui/popover";
+import {
+  Sheet,
+  SheetContent,
+  SheetTitle,
+  SheetTrigger,
+} from "../src/components/ui/sheet";
 import { Button } from "../src/components/ui/button";
 import { mountUi, setupDom, teardownDom } from "./helpers";
 
@@ -77,6 +85,45 @@ describe("floating open/close cycles", () => {
     ui.unmount();
   });
 
+  test("dialog overlay close does not reopen from trigger click-through", async () => {
+    let open = false;
+    const states: string[] = [];
+    const ui = mountUi(() => (
+      <Dialog onOpenChange={(v) => { open = v; }}>
+        <DialogTrigger>Open</DialogTrigger>
+        <DialogContent>
+          <DialogTitle>T</DialogTitle>
+          <DialogClose>Close</DialogClose>
+        </DialogContent>
+      </Dialog>
+    ));
+    ui.click('[data-slot="dialog-trigger"]');
+    await wait();
+    expect(open).toBe(true);
+    const overlay = ui.query('[data-slot="dialog-overlay"]') as HTMLElement;
+    expect(overlay).toBeTruthy();
+    overlay.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(open).toBe(false);
+    expect(ui.query('[data-slot="dialog-overlay"]')).toBe(overlay);
+    expect(overlay.getAttribute("data-state")).toBe("closed");
+    states.push(overlay.getAttribute("data-state") ?? "");
+    ui.click('[data-slot="dialog-trigger"]');
+    await wait();
+    expect(open).toBe(false);
+    expect(overlay.getAttribute("data-state")).toBe("closed");
+    states.push(overlay.getAttribute("data-state") ?? "");
+    expect(states).toEqual(["closed", "closed"]);
+    await wait(300);
+    expect(open).toBe(false);
+    expect(ui.query('[data-slot="dialog-overlay"]')).toBeNull();
+    ui.click('[data-slot="dialog-trigger"]');
+    await wait();
+    expect(open).toBe(true);
+    ui.unmount();
+  });
+
   test("trigger click closes popover without reopen race", async () => {
     let open = false;
     let changes = 0;
@@ -98,5 +145,54 @@ describe("floating open/close cycles", () => {
     expect(open).toBe(false);
     expect(changes).toBe(before + 1);
     ui.unmount();
+  });
+
+  test("sheet overlay dismiss keeps closed fill-mode classes until unmount", async () => {
+    let open = false;
+    const ui = mountUi(() => (
+      <Sheet onOpenChange={(v) => { open = v; }}>
+        <SheetTrigger>Open</SheetTrigger>
+        <SheetContent>
+          <SheetTitle>Sheet</SheetTitle>
+        </SheetContent>
+      </Sheet>
+    ));
+    ui.click('[data-slot="dialog-trigger"]');
+    await wait();
+    expect(open).toBe(true);
+    const overlay = ui.query('[data-slot="dialog-overlay"]') as HTMLElement;
+    const panel = ui.query('[data-slot="sheet-content"]') as HTMLElement;
+    expect(overlay.className).toContain("duration-200");
+    expect(overlay.className).toContain("!fill-mode-forwards");
+    expect(panel.className).toContain("duration-200");
+    expect(panel.className).toContain("!fill-mode-forwards");
+    overlay.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(open).toBe(false);
+    expect(ui.query('[data-slot="dialog-overlay"]')).toBe(overlay);
+    expect(ui.query('[data-slot="sheet-content"]')).toBe(panel);
+    expect(overlay.getAttribute("data-state")).toBe("closed");
+    expect(panel.getAttribute("data-state")).toBe("closed");
+    ui.click('[data-slot="dialog-trigger"]');
+    await wait();
+    expect(open).toBe(false);
+    expect(overlay.getAttribute("data-state")).toBe("closed");
+    await wait(250);
+    expect(ui.query('[data-slot="dialog-overlay"]')).toBeNull();
+    ui.unmount();
+  });
+});
+
+describe("overlay exit CSS", () => {
+  test("global stylesheet holds closed overlay animation fill-mode", () => {
+    const css = readFileSync(
+      join(import.meta.dir, "../src/styles/global.css"),
+      "utf8",
+    );
+    expect(css).toContain("animation-fill-mode: forwards !important");
+    expect(css).toContain('[data-slot="dialog-overlay"]');
+    expect(css).toContain('[data-slot="sheet-content"]');
+    expect(css).toContain('[data-slot="popover-content"]');
   });
 });

@@ -241,6 +241,71 @@ describe("primitives presence via withSetup", () => {
       expect(Presence({ present: false, children: "no" })).toBeTruthy();
     });
   });
+
+  test("Presence keeps children mounted while exiting then unmounts", async () => {
+    const open = signal(true);
+    const { root, unmount } = mountUi(() => (
+      <Presence
+        // @ts-expect-error uncompiled live getter
+        present={() => open.value}
+        exitMs={40}
+      >
+        <div
+          data-slot="presence-child"
+          data-state={() => (open.value ? "open" : "closed")}
+        />
+      </Presence>
+    ));
+    const child = root.querySelector(
+      '[data-slot="presence-child"]',
+    ) as HTMLElement;
+    expect(child.getAttribute("data-state")).toBe("open");
+    open.value = false;
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(root.querySelector('[data-slot="presence-child"]')).toBe(child);
+    expect(child.getAttribute("data-state")).toBe("closed");
+    open.value = true;
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(child.getAttribute("data-state")).toBe("open");
+    open.value = false;
+    await new Promise((r) => setTimeout(r, 80));
+    expect(root.querySelector('[data-slot="presence-child"]')).toBeNull();
+    unmount();
+  });
+
+  test("Presence unmounts immediately when exitMs is 0", async () => {
+    const open = signal(true);
+    const { root, unmount } = mountUi(() => (
+      <Presence
+        // @ts-expect-error uncompiled live getter
+        present={() => open.value}
+        exitMs={0}
+      >
+        <div data-slot="presence-zero" />
+      </Presence>
+    ));
+    expect(root.querySelector('[data-slot="presence-zero"]')).toBeTruthy();
+    open.value = false;
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(root.querySelector('[data-slot="presence-zero"]')).toBeNull();
+    unmount();
+
+    const lingering = signal(true);
+    const pending = mountUi(() => (
+      <Presence
+        // @ts-expect-error uncompiled live getter
+        present={() => lingering.value}
+      >
+        <div data-slot="presence-pending" />
+      </Presence>
+    ));
+    lingering.value = false;
+    await Promise.resolve();
+    pending.unmount();
+  });
 });
 
 describe("primitive controlled getter props", () => {

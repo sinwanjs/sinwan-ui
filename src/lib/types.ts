@@ -1,4 +1,5 @@
 import type { SinwanElement, SinwanNode } from "sinwan/component";
+import { unwrap } from "sinwan/reactivity";
 
 export type DivProps = JSX.IntrinsicElements["div"];
 export type ButtonHTMLProps = JSX.IntrinsicElements["button"];
@@ -22,9 +23,10 @@ export function isSinwanElement(node: SinwanNode): node is SinwanElement {
 export function flattenChildren(
   children: SinwanNode | undefined,
 ): SinwanNode[] {
-  if (children == null || children === false || children === true) return [];
-  if (Array.isArray(children)) {
-    return children.flatMap((child) => flattenChildren(child));
+  const resolved = unwrap(children);
+  if (resolved == null || resolved === false || resolved === true) return [];
+  if (Array.isArray(resolved)) {
+    return resolved.flatMap((child) => flattenChildren(child));
   }
-  return [children];
+  return [resolved];
 }

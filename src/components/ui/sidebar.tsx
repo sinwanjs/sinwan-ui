@@ -216,7 +216,10 @@ export const Sidebar = cc<SidebarProps>(
       <>
         <Show when={() => isMobile()}>
           <Sheet onOpenChange={setOpenMobile}>
-            <SheetOpenSync open={openMobile.value} />
+            <SheetOpenSync
+              // @ts-expect-error live open getter
+              open={() => openMobile.value}
+            />
             <SheetContent
               dir={dir}
               data-sidebar="sidebar"

@@ -37,6 +37,19 @@ import { Toggle } from "../src/components/ui/toggle";
 import { ToggleGroup, ToggleGroupItem } from "../src/components/ui/toggle-group";
 import { signal } from "sinwan/reactivity";
 import { Calendar } from "../src/components/ui/calendar";
+import { Progress } from "../src/components/ui/progress";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+} from "../src/components/ui/dropdown-menu";
 import {
   ChartBar,
   ChartContainer,
@@ -83,6 +96,7 @@ import {
 import {
   Combobox,
   ComboboxContent,
+  ComboboxEmpty,
   ComboboxInput,
   ComboboxItem,
   ComboboxList,
@@ -758,6 +772,239 @@ describe("Calendar Chart InputOTP Carousel", () => {
       );
     unmount();
   });
+
+  test("progress indicator width follows value", async () => {
+    const n = signal(35);
+    const { root, unmount } = mountUi(() => (
+      <Progress
+        // @ts-expect-error uncompiled live getter
+        value={() => n.value}
+      />
+    ));
+    const track = root.querySelector('[data-slot="progress"]') as HTMLElement;
+    const bar = root.querySelector(
+      '[data-slot="progress-indicator"]',
+    ) as HTMLElement;
+    expect(track.getAttribute("aria-valuenow")).toBe("35");
+    expect(bar.getAttribute("style")).toContain("35%");
+    expect(bar.className.includes("size-full")).toBe(false);
+    expect(bar.className.includes("flex-1")).toBe(false);
+    n.value = 50;
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(track.getAttribute("aria-valuenow")).toBe("50");
+    expect(bar.getAttribute("style")).toContain("50%");
+    unmount();
+
+    const zero = mountUi(() => <Progress value={0} />);
+    expect(
+      zero.root.querySelector('[data-slot="progress"]')?.getAttribute("aria-valuenow"),
+    ).toBe("0");
+    expect(
+      (
+        zero.root.querySelector(
+          '[data-slot="progress-indicator"]',
+        ) as HTMLElement
+      ).getAttribute("style"),
+    ).toContain("0%");
+    zero.unmount();
+
+    const empty = mountUi(() => <Progress />);
+    expect(
+      empty.root
+        .querySelector('[data-slot="progress"]')
+        ?.getAttribute("aria-valuenow"),
+    ).toBe("0");
+    empty.unmount();
+
+    const clamped = mountUi(() => (
+      <>
+        <Progress value={-10} />
+        <Progress value={150} />
+        <Progress value={Number.NaN} />
+        <Progress value={"x" as unknown as number} />
+      </>
+    ));
+    const nows = Array.from(
+      clamped.root.querySelectorAll('[data-slot="progress"]'),
+    ).map((el) => el.getAttribute("aria-valuenow"));
+    expect(nows).toEqual(["0", "100", "0", "0"]);
+    clamped.unmount();
+  });
+});
+
+describe("Dropdown menu checkbox radio submenu", () => {
+  test("checkbox toggles live checked and stays open", async () => {
+    const checked = signal(true);
+    const { unmount } = mountUi(() => (
+      <DropdownMenu defaultOpen>
+        <DropdownMenuTrigger>View</DropdownMenuTrigger>
+        <DropdownMenuContent>
+          <DropdownMenuCheckboxItem
+            // @ts-expect-error uncompiled live getter
+            checked={() => checked.value}
+            onCheckedChange={(v) => {
+              checked.value = v;
+            }}
+            inset
+          >
+            Status
+          </DropdownMenuCheckboxItem>
+          <DropdownMenuCheckboxItem disabled checked>
+            Locked
+          </DropdownMenuCheckboxItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    ));
+    await new Promise((r) => setTimeout(r, 10));
+    const items = document.querySelectorAll(
+      '[data-slot="dropdown-menu-checkbox-item"]',
+    );
+    const item = items[0] as HTMLElement;
+    expect(item.getAttribute("aria-checked")).toBe("true");
+    item.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(checked.value).toBe(false);
+    expect(item.getAttribute("aria-checked")).toBe("false");
+    expect(document.querySelector('[data-slot="dropdown-menu-content"]')).toBeTruthy();
+    item.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(checked.value).toBe(true);
+    expect(item.getAttribute("aria-checked")).toBe("true");
+    (items[1] as HTMLElement).dispatchEvent(
+      new MouseEvent("click", { bubbles: true }),
+    );
+    unmount();
+  });
+
+  test("radio selection updates without remounting the menu", async () => {
+    const position = signal("bottom");
+    const { unmount } = mountUi(() => (
+      <DropdownMenu defaultOpen>
+        <DropdownMenuTrigger>Position</DropdownMenuTrigger>
+        <DropdownMenuContent>
+          <DropdownMenuRadioGroup
+            // @ts-expect-error uncompiled live getter
+            value={() => position.value}
+            onValueChange={(v) => {
+              position.value = v;
+            }}
+          >
+            <DropdownMenuRadioItem value="top" inset>
+              Top
+            </DropdownMenuRadioItem>
+            <DropdownMenuRadioItem value="bottom">Bottom</DropdownMenuRadioItem>
+            <DropdownMenuRadioItem value="right" disabled>
+              Right
+            </DropdownMenuRadioItem>
+          </DropdownMenuRadioGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    ));
+    await new Promise((r) => setTimeout(r, 10));
+    const content = document.querySelector(
+      '[data-slot="dropdown-menu-content"]',
+    );
+    const radios = document.querySelectorAll(
+      '[data-slot="dropdown-menu-radio-item"]',
+    );
+    expect((radios[1] as HTMLElement).getAttribute("aria-checked")).toBe(
+      "true",
+    );
+    (radios[0] as HTMLElement).dispatchEvent(
+      new MouseEvent("click", { bubbles: true }),
+    );
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(position.value).toBe("top");
+    expect((radios[0] as HTMLElement).getAttribute("aria-checked")).toBe(
+      "true",
+    );
+    expect(document.querySelector('[data-slot="dropdown-menu-content"]')).toBe(
+      content,
+    );
+    (radios[2] as HTMLElement).dispatchEvent(
+      new MouseEvent("click", { bubbles: true }),
+    );
+    expect(position.value).toBe("top");
+    unmount();
+  });
+
+  test("submenu opens beside the trigger and is not clipped by the parent", async () => {
+    const subOpen = signal(false);
+    const { unmount } = mountUi(() => (
+      <DropdownMenu defaultOpen>
+        <DropdownMenuTrigger>More</DropdownMenuTrigger>
+        <DropdownMenuContent>
+          <DropdownMenuItem>New tab</DropdownMenuItem>
+          <DropdownMenuSub
+            // @ts-expect-error uncompiled live getter
+            open={() => subOpen.value}
+            onOpenChange={(next) => {
+              subOpen.value = next;
+            }}
+          >
+            <DropdownMenuSubTrigger inset>Share</DropdownMenuSubTrigger>
+            <DropdownMenuSubContent>
+              <DropdownMenuItem>Email</DropdownMenuItem>
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    ));
+    await new Promise((r) => setTimeout(r, 10));
+    const parent = document.querySelector(
+      '[data-slot="dropdown-menu-content"]',
+    ) as HTMLElement;
+    const trigger = document.querySelector(
+      '[data-slot="dropdown-menu-sub-trigger"]',
+    ) as HTMLElement;
+    trigger.dispatchEvent(new MouseEvent("mouseenter", { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 10));
+    const sub = document.querySelector(
+      '[data-slot="dropdown-menu-sub-content"]',
+    ) as HTMLElement;
+    expect(sub).toBeTruthy();
+    expect(parent.contains(sub)).toBe(false);
+    expect(sub.style.position).toBe("fixed");
+    const email = sub.querySelector(
+      '[data-slot="dropdown-menu-item"]',
+    ) as HTMLElement;
+    email.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true }));
+    email.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(document.querySelector('[data-slot="dropdown-menu-content"]')).toBe(
+      parent,
+    );
+    expect(document.querySelector('[data-slot="dropdown-menu-sub-content"]')).toBe(
+      sub,
+    );
+    sub.dispatchEvent(new MouseEvent("mouseenter", { bubbles: true }));
+    trigger.dispatchEvent(new MouseEvent("mouseleave", { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 10));
+    expect(document.querySelector('[data-slot="dropdown-menu-sub-content"]')).toBe(
+      sub,
+    );
+    sub.dispatchEvent(new MouseEvent("mouseleave", { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 150));
+    expect(
+      document.querySelector('[data-slot="dropdown-menu-sub-content"]'),
+    ).toBeNull();
+    trigger.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 10));
+    expect(
+      document.querySelector('[data-slot="dropdown-menu-sub-content"]'),
+    ).toBeTruthy();
+    trigger.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 10));
+    expect(
+      document.querySelector('[data-slot="dropdown-menu-sub-content"]'),
+    ).toBeNull();
+    unmount();
+  });
 });
 
 describe("Toast Sidebar Resizable Command Combobox", () => {
@@ -884,7 +1131,7 @@ describe("Toast Sidebar Resizable Command Combobox", () => {
     vert.unmount();
   });
 
-  test("command filter", () => {
+  test("command empty hides when items match and shows when none do", async () => {
     const { root, unmount } = mountUi(() => (
       <Command>
         <CommandInput placeholder="Filter" />
@@ -897,14 +1144,53 @@ describe("Toast Sidebar Resizable Command Combobox", () => {
         </CommandList>
       </Command>
     ));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(root.querySelector('[data-slot="command-empty"]')).toBeNull();
+    expect(root.querySelectorAll('[data-slot="command-item"]').length).toBe(2);
+
     const input = root.querySelector(
       '[data-slot="command-input"]',
     ) as HTMLInputElement;
     input.value = "cal";
     input.dispatchEvent(new Event("input", { bubbles: true }));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(root.querySelector('[data-slot="command-empty"]')).toBeNull();
+    expect(root.querySelector('[data-slot="command-item"]')?.textContent).toContain(
+      "Calendar",
+    );
+
     input.value = "zzz";
     input.dispatchEvent(new Event("input", { bubbles: true }));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(root.querySelector('[data-slot="command-empty"]')?.textContent).toBe(
+      "No results",
+    );
+    expect(root.querySelector('[data-slot="command-item"]')).toBeNull();
+
+    input.value = "zz";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(root.querySelector('[data-slot="command-empty"]')).toBeTruthy();
     unmount();
+
+    const none = mountUi(() => (
+      <Command>
+        <CommandInput />
+        <CommandList>
+          <CommandEmpty />
+        </CommandList>
+      </Command>
+    ));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(none.root.querySelector('[data-slot="command-empty"]')?.textContent).toBe(
+      "No results found.",
+    );
+    none.unmount();
   });
 
   test("combobox basics", () => {
@@ -953,5 +1239,130 @@ describe("Toast Sidebar Resizable Command Combobox", () => {
       ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     multi.unmount();
     void root;
+  });
+
+  test("combobox input can clear the last character of a selected value", async () => {
+    const errors: string[] = [];
+    const origError = console.error;
+    console.error = (...args: unknown[]) => {
+      errors.push(args.map(String).join(" "));
+      origError.apply(console, args);
+    };
+    let current = "";
+    const { root, unmount } = mountUi(() => (
+      <Combobox
+        defaultOpen
+        onValueChange={(v) => {
+          current = v;
+        }}
+      >
+        <ComboboxInput placeholder="Search" />
+        <ComboboxContent>
+          <ComboboxList>
+            <ComboboxItem
+              // @ts-expect-error uncompiled live getter
+              value={() => "alpha"}
+            >
+              Alpha
+            </ComboboxItem>
+            <ComboboxItem value="beta">Beta</ComboboxItem>
+            <ComboboxItem value={1 as unknown as string}>One</ComboboxItem>
+          </ComboboxList>
+        </ComboboxContent>
+      </Combobox>
+    ));
+    const input = root.querySelector("input") as HTMLInputElement;
+    input.value = "al";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    await Promise.resolve();
+    await Promise.resolve();
+    const item = document.querySelector(
+      '[data-slot="combobox-item"]',
+    ) as HTMLElement;
+    expect(item).toBeTruthy();
+    item.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(current).toBe("alpha");
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(input.value).toBe("Alpha");
+
+    input.value = "Alph";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(input.value).toBe("Alph");
+
+    input.value = "";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(input.value).toBe("");
+    expect(current).toBe("");
+    expect(errors.some((e) => e.includes("toLowerCase"))).toBe(false);
+    console.error = origError;
+    unmount();
+  });
+
+  test("combobox empty hides when items match and shows when none do", async () => {
+    const { root, unmount } = mountUi(() => (
+      <Combobox defaultOpen>
+        <ComboboxInput placeholder="Search" />
+        <ComboboxContent>
+          <ComboboxEmpty>No framework found.</ComboboxEmpty>
+          <ComboboxList>
+            <ComboboxItem value="sinwan">Sinwan</ComboboxItem>
+            <ComboboxItem value="react">React</ComboboxItem>
+          </ComboboxList>
+        </ComboboxContent>
+      </Combobox>
+    ));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(document.querySelector('[data-slot="combobox-empty"]')).toBeNull();
+    expect(document.querySelectorAll('[data-slot="combobox-item"]').length).toBe(
+      2,
+    );
+
+    const input = root.querySelector("input") as HTMLInputElement;
+    input.value = "zzz";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(
+      document.querySelector('[data-slot="combobox-empty"]')?.textContent,
+    ).toContain("No framework found");
+    expect(document.querySelector('[data-slot="combobox-item"]')).toBeNull();
+
+    input.value = "zz";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(document.querySelector('[data-slot="combobox-empty"]')).toBeTruthy();
+
+    input.value = "sin";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(document.querySelector('[data-slot="combobox-empty"]')).toBeNull();
+    expect(
+      document.querySelector('[data-slot="combobox-item"]')?.textContent,
+    ).toContain("Sinwan");
+    unmount();
+
+    const none = mountUi(() => (
+      <Combobox defaultOpen>
+        <ComboboxInput />
+        <ComboboxContent>
+          <ComboboxEmpty />
+          <ComboboxList />
+        </ComboboxContent>
+      </Combobox>
+    ));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(document.querySelector('[data-slot="combobox-empty"]')?.textContent).toBe(
+      "No results.",
+    );
+    none.unmount();
   });
 });

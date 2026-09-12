@@ -1,5 +1,5 @@
-import { cc, inject, provide, Show, type InjectionKey, type SinwanNode } from "sinwan/component";
-import { signal, type Signal } from "sinwan/reactivity";
+import { cc, inject, onUnmounted, provide, Show, type InjectionKey, type SinwanNode } from "sinwan/component";
+import { effect, signal, type Signal } from "sinwan/reactivity";
 import { Check, ChevronDown, X } from "lucide";
 
 import { Icon } from "../../icons";
@@ -14,9 +14,14 @@ type ComboboxApi = {
   setOpen: (value: boolean) => void;
   value: Live<string>;
   setValue: (value: string, label?: string) => void;
+  clearValue: (close: boolean) => void;
   label: Signal<string>;
   query: Signal<string>;
   setQuery: (value: string) => void;
+  filtering: Signal<boolean>;
+  matchCount: Signal<number>;
+  setItemMatch: (id: symbol, matches: boolean) => void;
+  clearItemMatch: (id: symbol) => void;
   multiple: boolean;
   values: Signal<string[]>;
   setValues: (values: string[]) => void;
@@ -48,7 +53,18 @@ const Combobox = cc<ComboboxProps>((props) => {
   );
   const label = signal("");
   const query = signal("");
+  const filtering = signal(false);
   const values = signal<string[]>([]);
+  const itemMatch = new Map<symbol, boolean>();
+  const matchCount = signal(0);
+
+  const recountMatches = () => {
+    let next = 0;
+    for (const hit of itemMatch.values()) {
+      if (hit) next += 1;
+    }
+    matchCount.value = next;
+  };
 
   const api: ComboboxApi = {
     open,
@@ -60,14 +76,38 @@ const Combobox = cc<ComboboxProps>((props) => {
     setValue: (v: string, text?: string) => {
       setValueLocal(v);
       if (text !== undefined) label.value = text;
+      query.value = "";
+      filtering.value = false;
       props.onValueChange?.(v);
       setOpenLocal(false);
       props.onOpenChange?.(false);
+    },
+    clearValue: (close: boolean) => {
+      setValueLocal("");
+      label.value = "";
+      query.value = "";
+      filtering.value = !close;
+      props.onValueChange?.("");
+      if (close) {
+        setOpenLocal(false);
+        props.onOpenChange?.(false);
+      }
     },
     label,
     query,
     setQuery: (v: string) => {
       query.value = v;
+    },
+    filtering,
+    matchCount,
+    setItemMatch: (id, matches) => {
+      if (itemMatch.get(id) === matches) return;
+      itemMatch.set(id, matches);
+      recountMatches();
+    },
+    clearItemMatch: (id) => {
+      itemMatch.delete(id);
+      recountMatches();
     },
     multiple: props.multiple ?? false,
     values,
@@ -167,10 +207,16 @@ function ComboboxInput({
       <InputGroupInput
         disabled={disabled}
         placeholder={placeholder}
-        value={() => api.query.value || api.label.value}
+        value={() =>
+          api.filtering.value
+            ? api.query.value
+            : api.label.value || api.value.value
+        }
         oninput={(e: Event) => {
           const next = (e.target as HTMLInputElement).value;
+          api.filtering.value = true;
           api.setQuery(next);
+          if (next === "") api.clearValue(false);
           api.setOpen(true);
           popover?.setOpen(true);
           oninput?.(e);
@@ -222,9 +268,7 @@ function ComboboxClear({ class: className, disabled }: ComboboxClearProps) {
       class={cn(className)}
       disabled={disabled}
       onclick={() => {
-        api.setValue("");
-        api.label.value = "";
-        api.setQuery("");
+        api.clearValue(true);
       }}
     >
       <Icon icon={X} class="pointer-events-none" />
@@ -253,7 +297,7 @@ function ComboboxContent({
       sideOffset={sideOffset}
       align={align}
       class={cn(
-        "group/combobox-content relative max-h-72 min-w-[12rem] overflow-hidden rounded-lg bg-popover text-popover-foreground shadow-md ring-1 ring-foreground/10 duration-100 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 *:data-[slot=input-group]:m-1 *:data-[slot=input-group]:mb-0 *:data-[slot=input-group]:h-8 *:data-[slot=input-group]:border-input/30 *:data-[slot=input-group]:bg-input/30 *:data-[slot=input-group]:shadow-none data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+        "group/combobox-content relative max-h-72 min-w-[12rem] overflow-hidden rounded-lg bg-popover text-popover-foreground shadow-md ring-1 ring-foreground/10 duration-200 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 *:data-[slot=input-group]:m-1 *:data-[slot=input-group]:mb-0 *:data-[slot=input-group]:h-8 *:data-[slot=input-group]:border-input/30 *:data-[slot=input-group]:bg-input/30 *:data-[slot=input-group]:shadow-none data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 data-closed:!fill-mode-forwards",
         className,
       )}
     >
@@ -268,10 +312,12 @@ type ComboboxListProps = {
 };
 
 function ComboboxList({ class: className, children }: ComboboxListProps) {
+  const api = inject(ComboboxKey)!;
   return (
     <div
       data-slot="combobox-list"
       role="listbox"
+      data-empty={() => (api.matchCount.value === 0 ? "" : undefined)}
       class={cn(
         "no-scrollbar max-h-72 scroll-py-1 overflow-y-auto overscroll-contain p-1 data-empty:p-0",
         className,
@@ -289,22 +335,30 @@ type ComboboxItemProps = {
   disabled?: boolean;
 };
 
-function ComboboxItem({
-  class: className,
-  children,
-  value,
-  disabled,
-}: ComboboxItemProps) {
+function itemValueText(value: unknown): string {
+  return typeof value === "string" ? value : "";
+}
+
+const ComboboxItem = cc(function ComboboxItem(props: ComboboxItemProps) {
   const api = inject(ComboboxKey)!;
-  const selected = () =>
-    api.multiple
+  const itemId = Symbol();
+  const selected = () => {
+    const value = itemValueText(props.value);
+    return api.multiple
       ? api.values.value.includes(value)
       : api.value.value === value;
+  };
   const matches = () => {
     const q = api.query.value.trim().toLowerCase();
     if (!q) return true;
-    return value.toLowerCase().includes(q);
+    return itemValueText(props.value).toLowerCase().includes(q);
   };
+  effect(() => {
+    api.setItemMatch(itemId, matches());
+  });
+  onUnmounted(() => {
+    api.clearItemMatch(itemId);
+  });
   return (
     <Show when={() => matches()} fallback={null}>
       <button
@@ -313,12 +367,13 @@ function ComboboxItem({
         data-slot="combobox-item"
         data-highlighted={undefined}
         aria-selected={() => selected()}
-        disabled={disabled}
+        disabled={() => Boolean(props.disabled)}
         class={cn(
           "relative flex w-full cursor-default items-center gap-2 rounded-md py-1 pr-8 pl-1.5 text-sm outline-hidden select-none hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
-          className,
+          props.class,
         )}
         onclick={(e: MouseEvent) => {
+          const value = itemValueText(props.value);
           const text = (e.currentTarget as HTMLElement).innerText.trim();
           if (api.multiple) {
             const next = selected()
@@ -327,11 +382,10 @@ function ComboboxItem({
             api.setValues(next);
           } else {
             api.setValue(value, text);
-            api.setQuery("");
           }
         }}
       >
-        {children}
+        {props.children}
         <span class="pointer-events-none absolute right-2 flex size-4 items-center justify-center">
           <Show when={() => selected()} fallback={null}>
             <Icon icon={Check} class="pointer-events-none" />
@@ -340,7 +394,7 @@ function ComboboxItem({
       </button>
     </Show>
   );
-}
+});
 
 type ComboboxGroupProps = {
   children?: SinwanNode;
@@ -385,16 +439,19 @@ type ComboboxEmptyProps = {
 };
 
 function ComboboxEmpty({ class: className, children }: ComboboxEmptyProps) {
+  const api = inject(ComboboxKey)!;
   return (
-    <div
-      data-slot="combobox-empty"
-      class={cn(
-        "w-full justify-center py-2 text-center text-sm text-muted-foreground",
-        className,
-      )}
-    >
-      {children ?? "No results."}
-    </div>
+    <Show when={() => api.matchCount.value === 0} fallback={null}>
+      <div
+        data-slot="combobox-empty"
+        class={cn(
+          "w-full justify-center py-2 text-center text-sm text-muted-foreground",
+          className,
+        )}
+      >
+        {children ?? "No results."}
+      </div>
+    </Show>
   );
 }
 

@@ -3,6 +3,7 @@ import { signal, type Signal } from "sinwan/reactivity";
 import { Check, ChevronRight } from "lucide";
 
 import { Icon } from "../../icons";
+import { createLiveState, type Live } from "../../lib/live-state";
 import { Slot } from "../../lib/slot";
 import { cn } from "../../lib/utils";
 import { UiPortal, useAnchorPosition, type Align } from "../../primitives";
@@ -17,8 +18,11 @@ type MenuApi = {
 const DropdownMenuKey: InjectionKey<MenuApi> = Symbol("sinwan-ui.dropdown-menu");
 
 type SubApi = {
-  open: Signal<boolean>;
+  open: Live<boolean>;
   setOpen: (value: boolean) => void;
+  triggerEl: Signal<HTMLElement | null>;
+  cancelClose: () => void;
+  requestClose: (delayMs?: number) => void;
 };
 
 const DropdownSubKey: InjectionKey<SubApi> = Symbol("sinwan-ui.dropdown-sub");
@@ -212,7 +216,15 @@ function DropdownMenuItem({
       )}
       onclick={(e: MouseEvent) => {
         onclick?.(e);
-        if (!e.defaultPrevented) api.setOpen(false);
+        if (e.defaultPrevented) return;
+        const target = e.currentTarget;
+        if (
+          target instanceof Element &&
+          target.closest("[data-slot$='-sub-content']") != null
+        ) {
+          return;
+        }
+        api.setOpen(false);
       }}
     >
       {children}
@@ -229,45 +241,39 @@ type DropdownMenuCheckboxItemProps = {
   onCheckedChange?: (checked: boolean) => void;
 };
 
-function DropdownMenuCheckboxItem({
-  class: className,
-  children,
-  checked = false,
-  inset,
-  disabled,
-  onCheckedChange,
-}: DropdownMenuCheckboxItemProps) {
+const DropdownMenuCheckboxItem = cc<DropdownMenuCheckboxItemProps>((props) => {
   return (
     <button
       type="button"
       role="menuitemcheckbox"
-      aria-checked={checked}
+      aria-checked={() => (props.checked ? "true" : "false")}
       data-slot="dropdown-menu-checkbox-item"
-      data-inset={inset ? "" : undefined}
-      disabled={disabled}
+      data-inset={props.inset ? "" : undefined}
+      disabled={props.disabled}
       class={cn(
         "relative flex w-full cursor-default items-center gap-1.5 rounded-md py-1 pr-8 pl-1.5 text-sm outline-hidden select-none focus:bg-accent focus:text-accent-foreground focus:**:text-accent-foreground data-inset:pl-7 data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
-        className,
+        props.class,
       )}
       onclick={() => {
-        onCheckedChange?.(!checked);
+        if (props.disabled) return;
+        props.onCheckedChange?.(!Boolean(props.checked));
       }}
     >
       <span
         class="pointer-events-none absolute right-2 flex items-center justify-center"
         data-slot="dropdown-menu-checkbox-item-indicator"
       >
-        <Show when={() => checked} fallback={null}>
+        <Show when={() => Boolean(props.checked)} fallback={null}>
           <Icon icon={Check} />
         </Show>
       </span>
-      {children}
+      {props.children}
     </button>
   );
-}
+});
 
 type RadioGroupApi = {
-  value: Signal<string>;
+  value: Live<string>;
   setValue: (value: string) => void;
 };
 
@@ -282,24 +288,25 @@ type DropdownMenuRadioGroupProps = {
   onValueChange?: (value: string) => void;
 };
 
-const DropdownMenuRadioGroup = cc<DropdownMenuRadioGroupProps>(
-  ({ children, value: valueProp, defaultValue = "", onValueChange }) => {
-    const value = signal(valueProp ?? defaultValue);
-    if (valueProp !== undefined) value.value = valueProp;
-    provide(DropdownRadioKey, {
-      value,
-      setValue: (v: string) => {
-        value.value = v;
-        onValueChange?.(v);
-      },
-    });
-    return (
-      <div data-slot="dropdown-menu-radio-group" role="group">
-        {children}
-      </div>
-    );
-  },
-);
+const DropdownMenuRadioGroup = cc<DropdownMenuRadioGroupProps>((props) => {
+  const { state: value, set } = createLiveState(
+    "value" in props,
+    props.defaultValue ?? "",
+    () => props.value ?? "",
+  );
+  provide(DropdownRadioKey, {
+    value,
+    setValue: (v: string) => {
+      set(v);
+      props.onValueChange?.(v);
+    },
+  });
+  return (
+    <div data-slot="dropdown-menu-radio-group" role="group">
+      {props.children}
+    </div>
+  );
+});
 
 type DropdownMenuRadioItemProps = {
   children?: SinwanNode;
@@ -309,29 +316,24 @@ type DropdownMenuRadioItemProps = {
   disabled?: boolean;
 };
 
-function DropdownMenuRadioItem({
-  class: className,
-  children,
-  value,
-  inset,
-  disabled,
-}: DropdownMenuRadioItemProps) {
+const DropdownMenuRadioItem = cc<DropdownMenuRadioItemProps>((props) => {
   const radio = inject(DropdownRadioKey)!;
-  const selected = () => radio.value.value === value;
+  const selected = () => radio.value.value === props.value;
   return (
     <button
       type="button"
       role="menuitemradio"
-      aria-checked={() => selected()}
+      aria-checked={() => (selected() ? "true" : "false")}
       data-slot="dropdown-menu-radio-item"
-      data-inset={inset ? "" : undefined}
-      disabled={disabled}
+      data-inset={props.inset ? "" : undefined}
+      disabled={props.disabled}
       class={cn(
         "relative flex w-full cursor-default items-center gap-1.5 rounded-md py-1 pr-8 pl-1.5 text-sm outline-hidden select-none focus:bg-accent focus:text-accent-foreground focus:**:text-accent-foreground data-inset:pl-7 data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
-        className,
+        props.class,
       )}
       onclick={() => {
-        radio.setValue(value);
+        if (props.disabled) return;
+        radio.setValue(props.value);
       }}
     >
       <span
@@ -342,10 +344,10 @@ function DropdownMenuRadioItem({
           <Icon icon={Check} />
         </Show>
       </span>
-      {children}
+      {props.children}
     </button>
   );
-}
+});
 
 type DropdownMenuLabelProps = {
   children?: SinwanNode;
@@ -414,23 +416,42 @@ type DropdownMenuSubProps = {
   onOpenChange?: (open: boolean) => void;
 };
 
-const DropdownMenuSub = cc<DropdownMenuSubProps>(
-  ({ children, open: openProp, defaultOpen = false, onOpenChange }) => {
-    const open = signal(openProp ?? defaultOpen);
-    provide(DropdownSubKey, {
-      open,
-      setOpen: (v: boolean) => {
-        open.value = v;
-        onOpenChange?.(v);
-      },
-    });
-    return (
-      <div data-slot="dropdown-menu-sub" class="relative">
-        {children}
-      </div>
-    );
-  },
-);
+const DropdownMenuSub = cc<DropdownMenuSubProps>((props) => {
+  const { state: open, set } = createLiveState(
+    "open" in props,
+    props.defaultOpen ?? false,
+    () => Boolean(props.open),
+  );
+  const triggerEl = signal<HTMLElement | null>(null);
+  let closeTimer: number | undefined;
+  function cancelClose() {
+    if (closeTimer !== undefined) {
+      window.clearTimeout(closeTimer);
+      closeTimer = undefined;
+    }
+  }
+  function setOpen(value: boolean) {
+    cancelClose();
+    set(value);
+    props.onOpenChange?.(value);
+  }
+  function requestClose(delayMs = 100) {
+    cancelClose();
+    closeTimer = window.setTimeout(() => {
+      closeTimer = undefined;
+      setOpen(false);
+    }, delayMs);
+  }
+  onUnmounted(cancelClose);
+  provide(DropdownSubKey, {
+    open,
+    setOpen,
+    triggerEl,
+    cancelClose,
+    requestClose,
+  });
+  return <div data-slot="dropdown-menu-sub">{props.children}</div>;
+});
 
 type DropdownMenuSubTriggerProps = {
   children?: SinwanNode;
@@ -444,12 +465,6 @@ function DropdownMenuSubTrigger({
   children,
 }: DropdownMenuSubTriggerProps) {
   const api = inject(DropdownSubKey)!;
-  function openSub() {
-    api.setOpen(true);
-  }
-  function toggleSub() {
-    api.setOpen(!api.open.value);
-  }
   function openAttr() {
     return api.open.value ? "" : undefined;
   }
@@ -463,8 +478,15 @@ function DropdownMenuSubTrigger({
         "flex w-full cursor-default items-center gap-1.5 rounded-md px-1.5 py-1 text-sm outline-hidden select-none focus:bg-accent focus:text-accent-foreground not-data-[variant=destructive]:focus:**:text-accent-foreground data-inset:pl-7 data-open:bg-accent data-open:text-accent-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
         className,
       )}
-      onmouseenter={openSub}
-      onclick={toggleSub}
+      onmouseenter={() => {
+        api.cancelClose();
+        api.setOpen(true);
+      }}
+      onmouseleave={() => api.requestClose()}
+      onclick={() => api.setOpen(!api.open.value)}
+      ref={(el: HTMLElement | null) => {
+        api.triggerEl.value = el;
+      }}
     >
       {children}
       <Icon icon={ChevronRight} class="ml-auto" />
@@ -482,22 +504,37 @@ function DropdownMenuSubContent({
   children,
 }: DropdownMenuSubContentProps) {
   const api = inject(DropdownSubKey)!;
-  function closeSub() {
-    api.setOpen(false);
-  }
+  const contentEl = signal<HTMLElement | null>(null);
+  const { style, present, side } = useAnchorPosition({
+    open: () => api.open.value,
+    trigger: () => api.triggerEl.value,
+    content: () => contentEl.value,
+    placement: "right",
+    align: "start",
+    gap: 4,
+    fallbackSize: { width: 128, height: 120 },
+  });
   return (
-    <Show when={() => api.open.value} fallback={null}>
-      <div
-        data-slot="dropdown-menu-sub-content"
-        data-open=""
-        class={cn(
-          "absolute top-0 left-full z-50 ml-1 min-w-[96px] overflow-hidden rounded-lg bg-popover p-1 text-popover-foreground shadow-lg ring-1 ring-foreground/10 duration-100 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95",
-          className,
-        )}
-        onmouseleave={closeSub}
-      >
-        {children}
-      </div>
+    <Show when={() => present.value} fallback={null}>
+      <UiPortal>
+        <div
+          data-slot="dropdown-menu-sub-content"
+          data-open=""
+          data-side={() => side.value}
+          class={cn(
+            "z-50 min-w-[96px] overflow-hidden rounded-lg bg-popover p-1 text-popover-foreground shadow-lg ring-1 ring-foreground/10 duration-100 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95",
+            className,
+          )}
+          style={() => style.value as unknown as string}
+          onmouseenter={() => api.cancelClose()}
+          onmouseleave={() => api.requestClose()}
+          ref={(el: HTMLElement | null) => {
+            contentEl.value = el;
+          }}
+        >
+          {children}
+        </div>
+      </UiPortal>
     </Show>
   );
 }

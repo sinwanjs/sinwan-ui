@@ -50,6 +50,8 @@ describe("types helpers", () => {
     expect(isSinwanElement("x")).toBe(false);
     expect(flattenChildren(null)).toEqual([]);
     expect(flattenChildren([el, false, "a"])).toEqual([el, "a"]);
+    expect(flattenChildren(() => el)).toEqual([el]);
+    expect(flattenChildren(() => [el, false, "a"])).toEqual([el, "a"]);
   });
 });
 
@@ -146,6 +148,42 @@ describe("Slot", () => {
 
   test("throws without a single element child", () => {
     expect(() => Slot({ children: "text" })).toThrow(/exactly one/);
+    expect(() => Slot({ children: () => "text" })).toThrow(/exactly one/);
+    expect(() =>
+      Slot({
+        children: (_unused: unknown) => ({
+          tag: "span",
+          props: {},
+          children: ["x"],
+        }),
+      }),
+    ).toThrow(/exactly one/);
+  });
+
+  test("merges compiler child getters onto the element", () => {
+    const child = {
+      tag: "a",
+      props: { class: "child", href: "#" },
+      children: ["Go"],
+    };
+    const fromGetter = asVNode(
+      Slot({
+        class: "slot",
+        children: () => child,
+      }),
+    );
+    expect(fromGetter.tag).toBe("a");
+    expect(fromGetter.props.class).toBe("child slot");
+    expect(fromGetter.props.href).toBe("#");
+
+    const fromNested = asVNode(
+      Slot({
+        class: "slot",
+        children: () => () => child,
+      }),
+    );
+    expect(fromNested.tag).toBe("a");
+    expect(fromNested.props.class).toBe("child slot");
   });
 });
 

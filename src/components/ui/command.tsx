@@ -1,5 +1,5 @@
-import { cc, getRawProps, inject, provide, Show, type InjectionKey, type SinwanNode } from "sinwan/component";
-import { signal, type Signal } from "sinwan/reactivity";
+import { cc, getRawProps, inject, onUnmounted, provide, Show, type InjectionKey, type SinwanNode } from "sinwan/component";
+import { effect, signal, type Signal } from "sinwan/reactivity";
 import { Check, Search } from "lucide";
 
 import { Icon } from "../../icons";
@@ -10,6 +10,9 @@ import { InputGroup, InputGroupAddon } from "./input-group";
 type CommandApi = {
   query: Signal<string>;
   setQuery: (value: string) => void;
+  matchCount: Signal<number>;
+  setItemMatch: (id: symbol, matches: boolean) => void;
+  clearItemMatch: (id: symbol) => void;
 };
 
 const CommandKey: InjectionKey<CommandApi> = Symbol("sinwan-ui.command");
@@ -21,10 +24,31 @@ type CommandProps = {
 
 const Command = cc<CommandProps>(({ children, class: className }) => {
   const query = signal("");
+  const itemMatch = new Map<symbol, boolean>();
+  const matchCount = signal(0);
+
+  const recountMatches = () => {
+    let next = 0;
+    for (const hit of itemMatch.values()) {
+      if (hit) next += 1;
+    }
+    matchCount.value = next;
+  };
+
   provide(CommandKey, {
     query,
     setQuery: (v: string) => {
       query.value = v;
+    },
+    matchCount,
+    setItemMatch: (id: symbol, matches: boolean) => {
+      if (itemMatch.get(id) === matches) return;
+      itemMatch.set(id, matches);
+      recountMatches();
+    },
+    clearItemMatch: (id: symbol) => {
+      itemMatch.delete(id);
+      recountMatches();
     },
   });
   return (
@@ -146,17 +170,14 @@ type CommandEmptyProps = {
 function CommandEmpty({ class: className, children }: CommandEmptyProps) {
   const api = inject(CommandKey)!;
   return (
-    <div
-      data-slot="command-empty"
-      class={cn("py-6 text-center text-sm", className)}
-      style={() =>
-        api.query.value
-          ? ({ display: "block" } as unknown as string)
-          : ({ display: "none" } as unknown as string)
-      }
-    >
-      {children ?? "No results found."}
-    </div>
+    <Show when={() => api.matchCount.value === 0} fallback={null}>
+      <div
+        data-slot="command-empty"
+        class={cn("py-6 text-center text-sm", className)}
+      >
+        {children ?? "No results found."}
+      </div>
+    </Show>
   );
 }
 
@@ -209,40 +230,44 @@ type CommandItemProps = {
   onclick?: (e: MouseEvent) => void;
 };
 
-function CommandItem({
-  class: className,
-  children,
-  value = "",
-  keywords = [],
-  disabled,
-  checked,
-  onclick,
-}: CommandItemProps) {
+function itemValueText(value: unknown): string {
+  return typeof value === "string" ? value : "";
+}
+
+const CommandItem = cc(function CommandItem(props: CommandItemProps) {
   const api = inject(CommandKey)!;
+  const itemId = Symbol();
   const matches = () => {
     const q = api.query.value.trim().toLowerCase();
     if (!q) return true;
-    const hay = [value, ...keywords]
+    const keywords = Array.isArray(props.keywords) ? props.keywords : [];
+    const hay = [itemValueText(props.value), ...keywords]
       .join(" ")
       .toLowerCase();
     return hay.includes(q);
   };
+  effect(() => {
+    api.setItemMatch(itemId, matches());
+  });
+  onUnmounted(() => {
+    api.clearItemMatch(itemId);
+  });
   return (
     <Show when={() => matches()} fallback={null}>
       <button
         type="button"
         role="option"
         data-slot="command-item"
-        data-disabled={disabled ? "true" : undefined}
-        data-checked={checked ? "true" : undefined}
-        disabled={disabled}
+        data-disabled={() => (props.disabled ? "true" : undefined)}
+        data-checked={() => (props.checked ? "true" : undefined)}
+        disabled={() => Boolean(props.disabled)}
         class={cn(
           "group/command-item relative flex w-full cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none in-data-[slot=dialog-content]:rounded-lg! data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 hover:bg-muted hover:text-foreground focus:bg-muted focus:text-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
-          className,
+          props.class,
         )}
-        onclick={onclick}
+        onclick={props.onclick}
       >
-        {children}
+        {props.children}
         <Icon
           icon={Check}
           class="ml-auto opacity-0 group-has-data-[slot=command-shortcut]/command-item:hidden group-data-[checked=true]/command-item:opacity-100"
@@ -250,7 +275,7 @@ function CommandItem({
       </button>
     </Show>
   );
-}
+});
 
 type CommandShortcutProps = {
   children?: SinwanNode;

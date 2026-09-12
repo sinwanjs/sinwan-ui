@@ -23,6 +23,26 @@
 @custom-variant data-active (&[data-state="active"], &[data-active]);
 @custom-variant data-open (&[data-state="open"], &[data-open]);
 @custom-variant data-closed (&[data-state="closed"], &[data-closed]);
+
+/*
+ * Presence keeps overlay layers mounted ~200ms after close. Exit keyframes
+ * (fade-out-0) must hold the last frame; otherwise the animation ends and
+ * the node snaps back to resting opacity/transform until unmount.
+ * tw-animate `animate-out` uses the `animation` shorthand, which resets
+ * fill-mode, so this longhand must win.
+ */
+[data-state="closed"]:is(
+  [data-slot="dialog-overlay"],
+  [data-slot="dialog-content"],
+  [data-slot="sheet-content"],
+  [data-slot="alert-dialog-content"],
+  [data-slot="drawer-content"],
+  [data-slot="popover-content"],
+  [data-slot="tooltip-content"]
+) {
+  animation-fill-mode: forwards !important;
+}
+
 @custom-variant data-horizontal (&[data-orientation="horizontal"], &[data-horizontal]);
 @custom-variant data-vertical (&[data-orientation="vertical"], &[data-vertical]);
 

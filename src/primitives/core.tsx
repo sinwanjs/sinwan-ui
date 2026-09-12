@@ -1,16 +1,53 @@
 import { cc, onMounted, onUnmounted, type SinwanNode } from "sinwan/component";
 import { Portal as SinwanPortal, Show } from "sinwan/component";
-import { signal, type Signal } from "sinwan/reactivity";
+import { effect, signal, untrack, type Signal } from "sinwan/reactivity";
 
 export type PresenceProps = {
-  present: boolean;
+  present?: boolean;
+  exitMs?: number;
   children?: SinwanNode;
 };
 
-/** Conditionally render children while present is true. */
+const DEFAULT_EXIT_MS = 200;
+
+/** Keep children mounted through CSS exit (`data-state=closed`) before unmount. */
 export const Presence = cc<PresenceProps>((props) => {
+  const mounted = signal(untrack(() => Boolean(props.present)));
+  let exitTimer: number | undefined;
+
+  function clearExitTimer() {
+    if (exitTimer !== undefined) {
+      window.clearTimeout(exitTimer);
+      exitTimer = undefined;
+    }
+  }
+
+  effect(() => {
+    const next = Boolean(props.present);
+    untrack(() => {
+      if (next) {
+        clearExitTimer();
+        mounted.value = true;
+        return;
+      }
+      if (!mounted.value) return;
+      clearExitTimer();
+      const delay = props.exitMs ?? DEFAULT_EXIT_MS;
+      if (delay <= 0) {
+        mounted.value = false;
+        return;
+      }
+      exitTimer = window.setTimeout(() => {
+        exitTimer = undefined;
+        mounted.value = false;
+      }, delay);
+    });
+  });
+
+  onUnmounted(clearExitTimer);
+
   return (
-    <Show when={() => Boolean(props.present)} fallback={null}>
+    <Show when={() => mounted.value} fallback={null}>
       {props.children}
     </Show>
   );

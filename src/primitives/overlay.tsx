@@ -1,9 +1,9 @@
-import { cc, inject, onMounted, onUnmounted, provide, Show, type InjectionKey, type SinwanNode } from "sinwan/component";
+import { cc, inject, onMounted, onUnmounted, provide, type InjectionKey, type SinwanNode } from "sinwan/component";
 import { signal } from "sinwan/reactivity";
 import { createLiveState, type Live } from "../lib/live-state";
 import { Slot } from "../lib/slot";
 
-import { UiPortal, useAnchorPosition, trapFocus, type Align, type Placement } from "./core";
+import { Presence, UiPortal, useAnchorPosition, trapFocus, type Align, type Placement } from "./core";
 import { isDismissExemptPointerTarget } from "./dismiss";
 
 export type OpenApi = {
@@ -22,6 +22,8 @@ type OpenProps = {
   onOpenChange?: (open: boolean) => void;
 };
 
+const REOPEN_LOCK_MS = 280;
+
 function createOpenState(props: OpenProps): OpenApi {
   const { state: open, set } = createLiveState(
     "open" in props,
@@ -31,6 +33,7 @@ function createOpenState(props: OpenProps): OpenApi {
   let closeTimer: number | undefined;
   let pointerOverTrigger = false;
   let hoverOpenBlocked = false;
+  let reopenLockUntil = 0;
 
   function cancelClose() {
     if (closeTimer !== undefined) {
@@ -41,7 +44,12 @@ function createOpenState(props: OpenProps): OpenApi {
 
   function setOpen(value: boolean) {
     cancelClose();
-    if (!value && pointerOverTrigger) hoverOpenBlocked = true;
+    if (value) {
+      if (Date.now() < reopenLockUntil) return;
+    } else {
+      if (pointerOverTrigger) hoverOpenBlocked = true;
+      reopenLockUntil = Date.now() + REOPEN_LOCK_MS;
+    }
     set(value);
     props.onOpenChange?.(value);
   }
@@ -158,17 +166,23 @@ export const DialogOverlay = cc<{ class?: string }>(({ class: className }) => {
   function dismiss() {
     api.setOpen(false);
   }
+  function overlayState() {
+    return api.open.value ? "open" : "closed";
+  }
   return (
-    <Show when={() => api.open.value} fallback={null}>
+    <Presence
+      // @ts-expect-error live open getter
+      present={() => api.open.value}
+    >
       <UiPortal>
         <div
           data-slot="dialog-overlay"
-          data-open=""
+          data-state={overlayState}
           class={className}
           onclick={dismiss}
         />
       </UiPortal>
-    </Show>
+    </Presence>
   );
 });
 
@@ -209,14 +223,20 @@ export const DialogContent = cc<{
     onUnmounted(cleanup);
   });
 
+  function contentState() {
+    return api.open.value ? "open" : "closed";
+  }
   return (
-    <Show when={() => api.open.value} fallback={null}>
+    <Presence
+      // @ts-expect-error live open getter
+      present={() => api.open.value}
+    >
       <UiPortal>
         <div
           role="dialog"
           aria-modal="true"
           data-slot={dataSlot}
-          data-open=""
+          data-state={contentState}
           data-side={dataSide}
           data-size={dataSize}
           data-vaul-drawer-direction={dataDrawerDirection}
@@ -238,7 +258,7 @@ export const DialogContent = cc<{
           {children}
         </div>
       </UiPortal>
-    </Show>
+    </Presence>
   );
 });
 
@@ -321,7 +341,10 @@ export const CollapsibleContent = cc<{
     return api.open.value ? "open" : "closed";
   }
   return (
-    <Show when={() => api.open.value} fallback={null}>
+    <Presence
+      // @ts-expect-error live open getter
+      present={() => api.open.value}
+    >
       <div
         data-slot="collapsible-content"
         data-state={stateAttr}
@@ -329,7 +352,7 @@ export const CollapsibleContent = cc<{
       >
         {children}
       </div>
-    </Show>
+    </Presence>
   );
 });
 
@@ -410,7 +433,7 @@ export const PopoverContent = cc<{
 }) => {
   const api = inject(PopoverKey)!;
   const contentEl = signal<HTMLElement | null>(null);
-  const { style, present, side: resolvedSide } = useAnchorPosition({
+  const { style, side: resolvedSide } = useAnchorPosition({
     open: () => api.open.value,
     trigger: () => api.triggerEl.value,
     content: () => contentEl.value,
@@ -445,17 +468,21 @@ export const PopoverContent = cc<{
     });
   });
 
+  function popoverState() {
+    return api.open.value ? "open" : "closed";
+  }
   return (
-    <Show when={() => present.value} fallback={null}>
+    <Presence
+      // @ts-expect-error live open getter
+      present={() => api.open.value}
+    >
       <UiPortal>
         <div
           data-slot="popover-content"
-          data-open=""
+          data-state={popoverState}
           data-side={() => resolvedSide.value}
           class={className}
-          style={function styleValue() {
-            return style.value as unknown as string;
-          }}
+          style={() => style.value as unknown as string}
           role="dialog"
           onmouseenter={onmouseenter}
           onmouseleave={onmouseleave}
@@ -466,7 +493,7 @@ export const PopoverContent = cc<{
           {children}
         </div>
       </UiPortal>
-    </Show>
+    </Presence>
   );
 });
 
@@ -536,7 +563,7 @@ export const TooltipContent = cc<{
 }>(({ children, class: className, side = "top" }) => {
   const api = inject(TooltipKey)!;
   const contentEl = signal<HTMLElement | null>(null);
-  const { style, present, side: resolvedSide } = useAnchorPosition({
+  const { style, side: resolvedSide } = useAnchorPosition({
     open: () => api.open.value,
     trigger: () => api.triggerEl.value,
     content: () => contentEl.value,
@@ -546,17 +573,22 @@ export const TooltipContent = cc<{
     fallbackSize: { width: 120, height: 32 },
   });
 
+  function tooltipState() {
+    return api.open.value ? "open" : "closed";
+  }
   return (
-    <Show when={() => present.value} fallback={null}>
+    <Presence
+      // @ts-expect-error live open getter
+      present={() => api.open.value}
+    >
       <UiPortal>
         <div
           role="tooltip"
           data-slot="tooltip-content"
+          data-state={tooltipState}
           data-side={() => resolvedSide.value}
           class={className}
-          style={function styleValue() {
-            return style.value as unknown as string;
-          }}
+          style={() => style.value as unknown as string}
           ref={(el: HTMLElement | null) => {
             contentEl.value = el;
           }}
@@ -564,6 +596,6 @@ export const TooltipContent = cc<{
           {children}
         </div>
       </UiPortal>
-    </Show>
+    </Presence>
   );
 });
