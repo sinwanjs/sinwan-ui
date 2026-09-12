@@ -1,6 +1,6 @@
 import { type Signal } from "sinwan/reactivity";
 
-import { cn, jsxClass } from "../../lib/utils";
+import { cn } from "../../lib/utils";
 
 type ProgressValueInput =
   | number
@@ -34,7 +34,7 @@ function Progress({
       role="progressbar"
       aria-valuemin={0}
       aria-valuemax={100}
-      aria-valuenow={jsxClass(() => readPercent(value))}
+      aria-valuenow={() => readPercent(value)}
       class={cn(
         "relative flex h-1 w-full items-center overflow-x-hidden rounded-full bg-muted",
         className,
@@ -44,7 +44,7 @@ function Progress({
       <div
         data-slot="progress-indicator"
         class="size-full flex-1 bg-primary transition-all"
-        style={jsxClass(() => `width: ${readPercent(value)}%`)}
+        style={() => `width: ${readPercent(value)}%`}
       />
     </div>
   );

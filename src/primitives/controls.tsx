@@ -1,16 +1,9 @@
-import {
-  cc,
-  inject,
-  onUnmounted,
-  provide,
-  type InjectionKey,
-  type SinwanNode,
-} from "sinwan/component";
+import { cc, inject, provide, type InjectionKey, type SinwanNode } from "sinwan/component";
 import { For, Show } from "sinwan/component";
-import { effect, resolve, signal, type Signal } from "sinwan/reactivity";
+import { resolve, signal, type Signal } from "sinwan/reactivity";
+import { createReactiveState } from "../lib/reactive-state";
 import { Slot } from "../lib/slot";
 import type { ReactiveProp } from "../lib/types";
-import { jsxClass } from "../lib/utils";
 
 function sameStringList(a: string[], b: string[]): boolean {
   if (a.length !== b.length) return false;
@@ -23,25 +16,6 @@ function sameStringList(a: string[], b: string[]): boolean {
 function toValueList(v: string | string[] | undefined): string[] {
   if (v == null) return [];
   return Array.isArray(v) ? v : v ? [v] : [];
-}
-
-function createReactiveState<T>(
-  valueProp: ReactiveProp<T> | undefined,
-  defaultValue: T,
-  same: (a: T, b: T) => boolean = Object.is,
-): Signal<T> {
-  const controlled = valueProp !== undefined;
-  const state = signal(controlled ? resolve(valueProp) : defaultValue);
-  if (controlled) {
-    const stop = effect(() => {
-      const next = resolve(valueProp);
-      if (!same(next, state.value)) {
-        state.value = next;
-      }
-    });
-    onUnmounted(stop);
-  }
-  return state;
 }
 
 // ─── Tabs ───────────────────────────────────────────────────
@@ -115,10 +89,10 @@ export const TabsTrigger = cc<{
       type="button"
       role="tab"
       data-slot="tabs-trigger"
-      data-state={jsxClass(() =>
-        api.value.value === value ? "active" : "inactive",
-      )}
-      aria-selected={jsxClass(() => api.value.value === value)}
+      data-state={() =>
+        api.value.value === value ? "active" : "inactive"
+      }
+      aria-selected={() => api.value.value === value}
       disabled={disabled}
       class={className}
       onclick={() => {
@@ -221,9 +195,9 @@ export const AccordionItem = cc<{
   return (
     <div
       data-slot="accordion-item"
-      data-state={jsxClass(() =>
-        api.value.value.includes(value) ? "open" : "closed",
-      )}
+      data-state={() =>
+        api.value.value.includes(value) ? "open" : "closed"
+      }
       class={className}
     >
       {children}
@@ -241,7 +215,7 @@ export const AccordionTrigger = cc<{
     <button
       type="button"
       data-slot="accordion-trigger"
-      aria-expanded={jsxClass(() => root.value.value.includes(item.value))}
+      aria-expanded={() => root.value.value.includes(item.value)}
       class={className}
       onclick={() => root.toggle(item.value)}
     >
@@ -300,10 +274,10 @@ export const CheckboxRoot = cc<{
       role="checkbox"
       id={id}
       data-slot="checkbox"
-      data-state={jsxClass(() =>
-        mixed.value ? "indeterminate" : checked.value ? "checked" : "unchecked",
-      )}
-      aria-checked={jsxClass(() => (mixed.value ? "mixed" : checked.value))}
+      data-state={() =>
+        mixed.value ? "indeterminate" : checked.value ? "checked" : "unchecked"
+      }
+      aria-checked={() => (mixed.value ? "mixed" : checked.value)}
       aria-label={ariaLabel}
       disabled={disabled}
       class={className}
@@ -349,8 +323,8 @@ export const SwitchRoot = cc<{
       id={id}
       data-slot="switch"
       data-size={dataSize}
-      data-state={jsxClass(() => (checked.value ? "checked" : "unchecked"))}
-      aria-checked={jsxClass(() => checked.value)}
+      data-state={() => (checked.value ? "checked" : "unchecked")}
+      aria-checked={() => checked.value}
       disabled={disabled}
       class={className}
       onclick={() => {
@@ -417,10 +391,10 @@ export const RadioGroupItem = cc<{
       role="radio"
       id={id}
       data-slot="radio-group-item"
-      data-state={jsxClass(() =>
-        api.value.value === value ? "checked" : "unchecked",
-      )}
-      aria-checked={jsxClass(() => api.value.value === value)}
+      data-state={() =>
+        api.value.value === value ? "checked" : "unchecked"
+      }
+      aria-checked={() => api.value.value === value}
       disabled={disabled}
       class={className}
       onclick={() => {
@@ -452,8 +426,8 @@ export const ToggleRoot = cc<{
     <button
       type="button"
       data-slot="toggle"
-      data-state={jsxClass(() => (pressed.value ? "on" : "off"))}
-      aria-pressed={jsxClass(() => pressed.value)}
+      data-state={() => (pressed.value ? "on" : "off")}
+      aria-pressed={() => pressed.value}
       disabled={disabled}
       class={className}
       onclick={() => {
@@ -561,9 +535,9 @@ export const ToggleGroupItem = cc<{
       data-variant={dataVariant}
       data-size={dataSize}
       data-spacing={dataSpacing}
-      data-state={jsxClass(() =>
-        api.value.value.includes(value) ? "on" : "off",
-      )}
+      data-state={() =>
+        api.value.value.includes(value) ? "on" : "off"
+      }
       disabled={disabled}
       class={className}
       onclick={() => {

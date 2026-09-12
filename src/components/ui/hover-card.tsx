@@ -1,18 +1,8 @@
-import {
-  inject,
-  onUnmounted,
-  type SinwanNode,
-} from "sinwan/component";
+import { inject, onUnmounted, type SinwanNode } from "sinwan/component";
 
 import { Slot } from "../../lib/slot";
-import { cn, jsxClass } from "../../lib/utils";
-import {
-  PopoverContent as PopoverContentPrimitive,
-  PopoverKey,
-  PopoverRoot,
-  type Align,
-  type Placement,
-} from "../../primitives";
+import { cn } from "../../lib/utils";
+import { PopoverContent as PopoverContentPrimitive, PopoverKey, PopoverRoot, type Align, type Placement } from "../../primitives";
 
 type HoverCardProps = {
   children?: SinwanNode;
@@ -87,7 +77,7 @@ function HoverCardTrigger({
       type="button"
       data-slot="hover-card-trigger"
       class={className}
-      aria-expanded={jsxClass<boolean>(() => api.open.value)}
+      aria-expanded={() => api.open.value}
       {...handlers}
     >
       {children}

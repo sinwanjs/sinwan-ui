@@ -1,25 +1,12 @@
-import {
-  cc,
-  inject,
-  onMounted,
-  onUnmounted,
-  provide,
-  Show,
-  type InjectionKey,
-  type SinwanNode,
-} from "sinwan/component";
+import { cc, inject, onMounted, onUnmounted, provide, Show, type InjectionKey, type SinwanNode } from "sinwan/component";
 import { signal, type Signal } from "sinwan/reactivity";
 import { Check, ChevronRight } from "lucide";
 
 import { Icon } from "../../icons";
 import { Slot } from "../../lib/slot";
-import { cn, jsxClass } from "../../lib/utils";
-import {
-  Presence,
-  UiPortal,
-  useAnchorPosition,
-  type Align,
-} from "../../primitives";
+import { cn } from "../../lib/utils";
+import { Presence, UiPortal, useAnchorPosition, type Align } from "../../primitives";
+import { isDismissExemptPointerTarget } from "../../primitives/dismiss";
 
 type MenuApi = {
   open: Signal<boolean>;
@@ -95,7 +82,7 @@ function DropdownMenuTrigger({
       type="button"
       data-slot="dropdown-menu-trigger"
       class={className}
-      aria-expanded={jsxClass<boolean>(() => api.open.value)}
+      aria-expanded={() => api.open.value}
       onclick={onClick}
       ref={ref}
     >
@@ -135,10 +122,10 @@ function DropdownMenuContent({
   onMounted(() => {
     function onDoc(e: MouseEvent) {
       if (!api.open.value) return;
-      const t = e.target as Node;
+      const t = e.target;
       if (
-        api.triggerEl.value?.contains(t) ||
-        (t instanceof Element && t.closest("[data-slot=dropdown-menu-content]"))
+        (t instanceof Node && api.triggerEl.value?.contains(t)) ||
+        isDismissExemptPointerTarget(t)
       ) {
         return;
       }
@@ -161,13 +148,13 @@ function DropdownMenuContent({
         <div
           data-slot="dropdown-menu-content"
           data-open=""
-          data-side={jsxClass(() => side.value)}
+          data-side={() => side.value}
           role="menu"
           class={cn(
             "z-50 max-h-96 min-w-32 overflow-x-hidden overflow-y-auto rounded-lg bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10 duration-100 data-[side=bottom]:slide-in-from-top-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
             className,
           )}
-          style={jsxClass(() => style.value as unknown as string)}
+          style={() => style.value as unknown as string}
           ref={(el: HTMLElement | null) => {
             contentEl.value = el;
           }}
@@ -250,7 +237,6 @@ function DropdownMenuCheckboxItem({
   disabled,
   onCheckedChange,
 }: DropdownMenuCheckboxItemProps) {
-  const api = inject(DropdownMenuKey)!;
   return (
     <button
       type="button"
@@ -265,7 +251,6 @@ function DropdownMenuCheckboxItem({
       )}
       onclick={() => {
         onCheckedChange?.(!checked);
-        api.setOpen(false);
       }}
     >
       <span
@@ -331,14 +316,13 @@ function DropdownMenuRadioItem({
   inset,
   disabled,
 }: DropdownMenuRadioItemProps) {
-  const menu = inject(DropdownMenuKey)!;
   const radio = inject(DropdownRadioKey)!;
   const selected = () => radio.value.value === value;
   return (
     <button
       type="button"
       role="menuitemradio"
-      aria-checked={jsxClass<boolean>(() => selected())}
+      aria-checked={() => selected()}
       data-slot="dropdown-menu-radio-item"
       data-inset={inset ? "" : undefined}
       disabled={disabled}
@@ -348,7 +332,6 @@ function DropdownMenuRadioItem({
       )}
       onclick={() => {
         radio.setValue(value);
-        menu.setOpen(false);
       }}
     >
       <span
@@ -475,7 +458,7 @@ function DropdownMenuSubTrigger({
       type="button"
       data-slot="dropdown-menu-sub-trigger"
       data-inset={inset ? "" : undefined}
-      data-open={jsxClass(openAttr)}
+      data-open={openAttr}
       class={cn(
         "flex w-full cursor-default items-center gap-1.5 rounded-md px-1.5 py-1 text-sm outline-hidden select-none focus:bg-accent focus:text-accent-foreground not-data-[variant=destructive]:focus:**:text-accent-foreground data-inset:pl-7 data-open:bg-accent data-open:text-accent-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
         className,

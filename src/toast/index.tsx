@@ -1,24 +1,9 @@
-import {
-  cc,
-  For,
-  inject,
-  onUnmounted,
-  Portal,
-  Show,
-  type SinwanNode,
-} from "sinwan/component";
+import { cc, For, inject, onUnmounted, Portal, Show, type SinwanNode } from "sinwan/component";
 import { signal } from "sinwan/reactivity";
-import {
-  CircleCheck,
-  Info,
-  Loader2,
-  OctagonX,
-  TriangleAlert,
-  X,
-} from "lucide";
+import { CircleCheck, Info, Loader2, OctagonX, TriangleAlert, X } from "lucide";
 
 import { Icon } from "../icons";
-import { cn, jsxClass } from "../lib/utils";
+import { cn } from "../lib/utils";
 import { ThemeKey } from "../theme/theme-provider";
 
 export type ToastType =
@@ -220,7 +205,7 @@ export const Toaster = cc<ToasterProps>(
       <Portal>
         <div
           data-slot="toaster"
-          data-theme={jsxClass(() => theme())}
+          data-theme={() => theme()}
           class={cn(
             "toaster group pointer-events-none fixed z-[100] flex w-full max-w-[420px] flex-col gap-2 p-4",
             positionClass[position],

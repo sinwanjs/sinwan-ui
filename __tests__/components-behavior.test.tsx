@@ -141,9 +141,103 @@ describe("Button behavior", () => {
       expect(prevented).toBe(true);
 
       const loading = asVNode(Button({ isLoading: true, children: "y" }));
-      expect(loading.props["aria-busy"]).toBe(true);
+      const busy = loading.props["aria-busy"];
+      expect(typeof busy === "function" ? (busy as () => unknown)() : busy).toBe(
+        true,
+      );
       (loading.props.onclick as (e: Event) => void)(evt);
     });
+  });
+
+  test("isLoading getter does not disable before the signal is true", async () => {
+    const loading = signal(false);
+    let clicks = 0;
+    const { query, unmount } = mountUi(() => (
+      <Button
+        isLoading={() => loading.value}
+        onclick={() => {
+          clicks += 1;
+          loading.value = true;
+        }}
+      >
+        {() => (loading.value ? "Saving…" : "Save")}
+      </Button>
+    ));
+    const btn = query("[data-slot=button]") as HTMLButtonElement;
+    expect(btn.disabled).toBe(false);
+    expect(btn.getAttribute("aria-busy")).toBeNull();
+    btn.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(clicks).toBe(1);
+    expect(btn.disabled).toBe(true);
+    expect(btn.hasAttribute("aria-busy")).toBe(true);
+    expect(btn.textContent).toContain("Saving");
+    unmount();
+  });
+
+  test("variant getter updates class without remounting", async () => {
+    const theme = signal("light");
+    const { query, unmount } = mountUi(() => (
+      <Button
+        variant={() => (theme.value === "dark" ? "default" : "outline")}
+        size={() => (theme.value === "dark" ? "lg" : "sm")}
+      >
+        Dark
+      </Button>
+    ));
+    const btn = query("[data-slot=button]") as HTMLButtonElement;
+    expect(btn.getAttribute("data-variant")).toBe("outline");
+    expect(btn.getAttribute("data-size")).toBe("sm");
+    theme.value = "dark";
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(btn.getAttribute("data-variant")).toBe("default");
+    expect(btn.getAttribute("data-size")).toBe("lg");
+    unmount();
+  });
+
+  test("disabled getter and idle click without onclick stay enabled", async () => {
+    const off = signal(false);
+    const { query, unmount } = mountUi(() => (
+      <Button disabled={() => off.value}>Idle</Button>
+    ));
+    const btn = query("[data-slot=button]") as HTMLButtonElement;
+    expect(btn.disabled).toBe(false);
+    btn.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    off.value = true;
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(btn.disabled).toBe(true);
+    unmount();
+  });
+
+  test("asChild getter variant and enabled click", async () => {
+    const theme = signal("light");
+    let clicks = 0;
+    const { query, unmount } = mountUi(() => (
+      <Button
+        asChild
+        variant={() => (theme.value === "dark" ? "default" : "outline")}
+        onclick={() => {
+          clicks += 1;
+        }}
+      >
+        <a href="#open" class="child-link">
+          Open
+        </a>
+      </Button>
+    ));
+    const link = query("[data-slot=button]") as HTMLAnchorElement;
+    expect(link.getAttribute("data-variant")).toBe("outline");
+    expect(link.className).toContain("child-link");
+    link.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(clicks).toBe(1);
+    theme.value = "dark";
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(link.getAttribute("data-variant")).toBe("default");
+    unmount();
   });
 });
 
@@ -735,7 +829,7 @@ describe("Toast Sidebar Resizable Command Combobox", () => {
         right: 200,
         x: 0,
         y: 0,
-        toJSON: () => ({}),
+        toJSON: () => ({})
       }) as DOMRect;
 
     handle.dispatchEvent(

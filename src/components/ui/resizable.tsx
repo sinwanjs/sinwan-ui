@@ -1,13 +1,7 @@
-import {
-  cc,
-  inject,
-  provide,
-  type InjectionKey,
-  type SinwanNode,
-} from "sinwan/component";
+import { cc, inject, provide, type InjectionKey, type SinwanNode } from "sinwan/component";
 import { signal, type Signal } from "sinwan/reactivity";
 
-import { cn, jsxClass } from "../../lib/utils";
+import { cn } from "../../lib/utils";
 
 type Orientation = "horizontal" | "vertical";
 
@@ -144,11 +138,11 @@ export const ResizablePanel = cc<ResizablePanelProps>(
         data-slot="resizable-panel"
         data-panel-id={panelId}
         class={cn("min-h-0 min-w-0 overflow-hidden", className)}
-        style={jsxClass(() => ({
+        style={() => ({
           flexBasis: `${size.value}%`,
           flexGrow: 0,
           flexShrink: 0,
-        }))}
+        })}
       >
         {children}
       </div>

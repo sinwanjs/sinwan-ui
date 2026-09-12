@@ -1,16 +1,9 @@
-import {
-  cc,
-  inject,
-  provide,
-  Show,
-  type InjectionKey,
-  type SinwanNode,
-} from "sinwan/component";
+import { cc, inject, provide, Show, type InjectionKey, type SinwanNode } from "sinwan/component";
 import { signal, type Signal } from "sinwan/reactivity";
 import { Minus } from "lucide";
 
 import { Icon } from "../../icons";
-import { cn, jsxClass } from "../../lib/utils";
+import { cn } from "../../lib/utils";
 
 export type OtpSlotState = {
   char: string;
@@ -126,7 +119,7 @@ export const InputOTP = cc<InputOTPProps>(
             "absolute inset-0 h-full w-full cursor-default opacity-0 disabled:cursor-not-allowed",
             className,
           )}
-          value={jsxClass(() => value.value)}
+          value={() => value.value}
           maxLength={maxLength}
           disabled={disabled}
           inputMode={inputMode}
@@ -192,9 +185,9 @@ export const InputOTPSlot = cc<InputOTPSlotProps>(
     return (
       <div
         data-slot="input-otp-slot"
-        data-active={jsxClass(() =>
-          api.slots()[index]?.isActive ? "true" : undefined,
-        )}
+        data-active={() =>
+          api.slots()[index]?.isActive ? "true" : undefined
+        }
         class={cn(
           "relative flex size-8 items-center justify-center border-y border-r border-input text-sm transition-all outline-none first:rounded-l-lg first:border-l last:rounded-r-lg aria-invalid:border-destructive data-[active=true]:z-10 data-[active=true]:border-ring data-[active=true]:ring-3 data-[active=true]:ring-ring/50 data-[active=true]:aria-invalid:border-destructive data-[active=true]:aria-invalid:ring-destructive/20 dark:bg-input/30 dark:data-[active=true]:aria-invalid:ring-destructive/40",
           className,

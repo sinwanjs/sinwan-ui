@@ -1,24 +1,10 @@
-import {
-  cc,
-  inject,
-  onMounted,
-  onUnmounted,
-  provide,
-  type InjectionKey,
-  type SinwanNode,
-} from "sinwan/component";
+import { cc, inject, onMounted, onUnmounted, provide, type InjectionKey, type SinwanNode } from "sinwan/component";
 import { signal, effect, resolve, type Signal } from "sinwan/reactivity";
 import { Slot } from "../lib/slot";
 import type { ReactiveProp } from "../lib/types";
-import { jsxClass } from "../lib/utils";
-import {
-  Presence,
-  UiPortal,
-  useAnchorPosition,
-  trapFocus,
-  type Align,
-  type Placement,
-} from "./core";
+
+import { Presence, UiPortal, useAnchorPosition, trapFocus, type Align, type Placement } from "./core";
+import { isDismissExemptPointerTarget } from "./dismiss";
 
 export type OpenApi = {
   open: Signal<boolean>;
@@ -291,9 +277,9 @@ export const CollapsibleRoot = cc<{
   return (
     <div
       data-slot="collapsible"
-      data-state={jsxClass(function stateAttr() {
+      data-state={function stateAttr() {
         return open.value ? "open" : "closed";
-      })}
+      }}
       class={className}
     >
       {children}
@@ -322,9 +308,9 @@ export const CollapsibleTrigger = cc<{
       type="button"
       class={className}
       data-slot="collapsible-trigger"
-      aria-expanded={jsxClass(function expanded() {
+      aria-expanded={function expanded() {
         return api.open.value;
-      })}
+      }}
       onclick={toggle}
     >
       {children}
@@ -347,7 +333,7 @@ export const CollapsibleContent = cc<{
     <Presence present={isOpen}>
       <div
         data-slot="collapsible-content"
-        data-state={jsxClass(stateAttr)}
+        data-state={stateAttr}
         class={className}
       >
         {children}
@@ -406,9 +392,9 @@ export const PopoverTrigger = cc<{
       type="button"
       class={className}
       data-slot="popover-trigger"
-      aria-expanded={jsxClass(function expanded() {
+      aria-expanded={function expanded() {
         return api.open.value;
-      })}
+      }}
       onclick={onClick}
       ref={ref}
     >
@@ -449,10 +435,10 @@ export const PopoverContent = cc<{
   onMounted(() => {
     function onDoc(e: MouseEvent) {
       if (!api.open.value) return;
-      const t = e.target as Node;
+      const t = e.target;
       if (
-        api.triggerEl.value?.contains(t) ||
-        (t instanceof Element && t.closest("[data-slot=popover-content]"))
+        (t instanceof Node && api.triggerEl.value?.contains(t)) ||
+        isDismissExemptPointerTarget(t)
       ) {
         return;
       }
@@ -477,11 +463,11 @@ export const PopoverContent = cc<{
         <div
           data-slot="popover-content"
           data-open=""
-          data-side={jsxClass(() => resolvedSide.value)}
+          data-side={() => resolvedSide.value}
           class={className}
-          style={jsxClass(function styleValue() {
+          style={function styleValue() {
             return style.value as unknown as string;
-          })}
+          }}
           role="dialog"
           onmouseenter={onmouseenter}
           onmouseleave={onmouseleave}
@@ -578,11 +564,11 @@ export const TooltipContent = cc<{
         <div
           role="tooltip"
           data-slot="tooltip-content"
-          data-side={jsxClass(() => resolvedSide.value)}
+          data-side={() => resolvedSide.value}
           class={className}
-          style={jsxClass(function styleValue() {
+          style={function styleValue() {
             return style.value as unknown as string;
-          })}
+          }}
           ref={(el: HTMLElement | null) => {
             contentEl.value = el;
           }}

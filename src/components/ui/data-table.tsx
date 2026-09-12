@@ -3,23 +3,13 @@ import { effect, resolve } from "sinwan/reactivity";
 import { constructTable, type RowData } from "@tanstack/table-core";
 
 import type { ReactiveProp } from "../../lib/types";
-import { cn, jsxClass } from "../../lib/utils";
-import {
-  dataTableFeatures,
-  type DataTableColumnDef,
-} from "./data-table-features";
+import { cn } from "../../lib/utils";
+import { dataTableFeatures, type DataTableColumnDef } from "./data-table-features";
 import { DataTableFlexRender, useTableRevision } from "./data-table-node";
 import { DataTablePagination } from "./data-table-pagination";
 import { DataTableViewOptions } from "./data-table-view-options";
 import { Input } from "./input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "./table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./table";
 
 export type DataTableProps<TData extends RowData = RowData> = {
   columns: ReadonlyArray<DataTableColumnDef<TData>>;
@@ -85,12 +75,12 @@ const DataTableHost = cc<DataTableHostProps>((props) => {
               data-slot="data-table-filter"
               placeholder={props.filterPlaceholder}
               class="max-w-sm"
-              value={jsxClass(() => {
+              value={() => {
                 revision.value;
                 const column = table.getColumn(props.filterColumnId ?? "");
                 const filterValue = column?.getFilterValue();
                 return typeof filterValue === "string" ? filterValue : "";
-              })}
+              }}
               oninput={(event: Event) => {
                 const input = event.currentTarget as HTMLInputElement;
                 table
@@ -146,10 +136,10 @@ const DataTableHost = cc<DataTableHostProps>((props) => {
             >
               {(row) => (
                 <TableRow
-                  data-state={jsxClass(() => {
+                  data-state={() => {
                     revision.value;
                     return row.getIsSelected() ? "selected" : undefined;
-                  })}
+                  }}
                 >
                   <For each={() => row.getVisibleCells()}>
                     {(cell) => (

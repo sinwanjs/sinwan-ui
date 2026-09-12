@@ -1,7 +1,9 @@
 import { cva, type VariantProps } from "class-variance-authority";
-import type { SinwanNode } from "sinwan/component";
+import { cc, type SinwanNode } from "sinwan/component";
+import { resolve } from "sinwan/reactivity";
 
 import { Slot } from "../../lib/slot";
+import type { ReactiveProp } from "../../lib/types";
 import { cn } from "../../lib/utils";
 
 import { Spinner } from "./spinner";
@@ -46,12 +48,19 @@ const buttonVariants = cva(
   },
 );
 
-type ButtonProps = JSX.IntrinsicElements["button"] &
-  VariantProps<typeof buttonVariants> & {
-    asChild?: boolean;
-    isLoading?: boolean;
-    children?: SinwanNode;
-  };
+type ButtonVariant = NonNullable<
+  VariantProps<typeof buttonVariants>["variant"]
+>;
+type ButtonSize = NonNullable<VariantProps<typeof buttonVariants>["size"]>;
+
+type ButtonProps = Omit<JSX.IntrinsicElements["button"], "disabled"> & {
+  variant?: ReactiveProp<ButtonVariant>;
+  size?: ReactiveProp<ButtonSize>;
+  asChild?: boolean;
+  isLoading?: ReactiveProp<boolean>;
+  disabled?: ReactiveProp<boolean>;
+  children?: SinwanNode;
+};
 
 // `pointer-events: none` blocks the mouse, but a focused anchor still activates
 // on Enter, so a disabled `asChild` button needs the handler stopped too.
@@ -60,50 +69,92 @@ const preventClick = (event: Event) => {
   event.stopPropagation();
 };
 
-function Button({
+const Button = cc(function Button({
   class: className,
-  variant = "default",
-  size = "default",
+  variant,
+  size,
   asChild = false,
-  isLoading = false,
+  isLoading,
   disabled,
   onclick,
   children,
   ...props
 }: ButtonProps) {
-  const isDisabled = Boolean(disabled || isLoading);
-
-  const shared = {
-    "data-slot": "button",
-    "data-variant": variant,
-    "data-size": size,
-    class: cn(buttonVariants({ variant, size, className })),
-    // `disabled` only exists on form controls: with `asChild` the child is
-    // usually an anchor, where it does nothing and `:disabled` never matches.
-    // `aria-disabled` carries both the styling and the semantics either way.
-    "aria-disabled": isDisabled || undefined,
-    "aria-busy": isLoading || undefined,
-    onclick: isDisabled ? preventClick : onclick,
-    ...props,
+  const handleClick: NonNullable<
+    JSX.IntrinsicElements["button"]["onclick"]
+  > = (event) => {
+    if (resolve(disabled) || resolve(isLoading)) {
+      preventClick(event);
+      return;
+    }
+    onclick?.(event);
   };
 
+  // `disabled` only exists on form controls: with `asChild` the child is
+  // usually an anchor, where it does nothing and `:disabled` never matches.
+  // `aria-disabled` carries both the styling and the semantics either way.
   if (asChild) {
-    return <Slot {...shared}>{children}</Slot>;
+    return (
+      <Slot
+        data-slot="button"
+        data-variant={() => resolve(variant)}
+        data-size={() => resolve(size)}
+        class={() =>
+          cn(
+            buttonVariants({
+              variant: resolve(variant) ?? "default",
+              size: resolve(size) ?? "default",
+              className: resolve(className),
+            }),
+          )
+        }
+        aria-disabled={() =>
+          resolve(disabled) || resolve(isLoading) ? true : undefined
+        }
+        aria-busy={() => (resolve(isLoading) ? true : undefined)}
+        onclick={handleClick}
+        {...props}
+      >
+        {children}
+      </Slot>
+    );
   }
 
   return (
-    <button {...shared} disabled={isDisabled}>
-      {isLoading ? (
-        <>
-          <Spinner />
-          {children}
-        </>
-      ) : (
-        children
-      )}
+    <button
+      data-slot="button"
+      data-variant={() => resolve(variant)}
+      data-size={() => resolve(size)}
+      class={() =>
+        cn(
+          buttonVariants({
+            variant: resolve(variant) ?? "default",
+            size: resolve(size) ?? "default",
+            className: resolve(className),
+          }),
+        )
+      }
+      aria-disabled={() =>
+        resolve(disabled) || resolve(isLoading) ? true : undefined
+      }
+      aria-busy={() => (resolve(isLoading) ? true : undefined)}
+      onclick={handleClick}
+      {...props}
+      disabled={() => Boolean(resolve(disabled) || resolve(isLoading))}
+    >
+      {() =>
+        resolve(isLoading) ? (
+          <>
+            <Spinner />
+            {children}
+          </>
+        ) : (
+          children
+        )
+      }
     </button>
   );
-}
+});
 
 export { Button, buttonVariants };
 export type { ButtonProps };

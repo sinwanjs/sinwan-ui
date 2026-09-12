@@ -1,12 +1,5 @@
-import {
-  cc,
-  inject,
-  provide,
-  type InjectionKey,
-  type SinwanNode,
-} from "sinwan/component";
+import { cc, inject, provide, type InjectionKey, type SinwanNode } from "sinwan/component";
 import { signal, type Signal } from "sinwan/reactivity";
-import { jsxClass } from "../lib/utils";
 
 export type Direction = "ltr" | "rtl";
 
@@ -35,7 +28,7 @@ export const DirectionProvider = cc<DirectionProviderProps>(
     });
     return (
       <div
-        dir={jsxClass(() => dir.value)}
+        dir={() => dir.value}
         data-slot="direction-provider"
       >
         {children}

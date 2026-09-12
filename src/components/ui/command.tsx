@@ -1,23 +1,10 @@
-import {
-  cc,
-  inject,
-  provide,
-  Show,
-  type InjectionKey,
-  type SinwanNode,
-} from "sinwan/component";
+import { cc, inject, provide, Show, type InjectionKey, type SinwanNode } from "sinwan/component";
 import { signal, type Signal } from "sinwan/reactivity";
 import { Check, Search } from "lucide";
 
 import { Icon } from "../../icons";
-import { cn, jsxClass } from "../../lib/utils";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "./dialog";
+import { cn } from "../../lib/utils";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./dialog";
 import { InputGroup, InputGroupAddon } from "./input-group";
 
 type CommandApi = {
@@ -163,11 +150,11 @@ function CommandEmpty({ class: className, children }: CommandEmptyProps) {
     <div
       data-slot="command-empty"
       class={cn("py-6 text-center text-sm", className)}
-      style={jsxClass(() =>
+      style={() =>
         api.query.value
           ? ({ display: "block" } as unknown as string)
-          : ({ display: "none" } as unknown as string),
-      )}
+          : ({ display: "none" } as unknown as string)
+      }
     >
       {children ?? "No results found."}
     </div>

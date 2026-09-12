@@ -1,23 +1,11 @@
-import {
-  cc,
-  inject,
-  onMounted,
-  onUnmounted,
-  provide,
-  Show,
-  type InjectionKey,
-  type SinwanNode,
-} from "sinwan/component";
+import { cc, inject, onMounted, onUnmounted, provide, Show, type InjectionKey, type SinwanNode } from "sinwan/component";
 import { signal, type Signal } from "sinwan/reactivity";
 import { Check, ChevronDown, ChevronUp } from "lucide";
 
 import { Icon } from "../../icons";
-import { cn, jsxClass } from "../../lib/utils";
-import {
-  Presence,
-  UiPortal,
-  useAnchorPosition,
-} from "../../primitives";
+import { cn } from "../../lib/utils";
+import { Presence, UiPortal, useAnchorPosition } from "../../primitives";
+import { isDismissExemptPointerTarget } from "../../primitives/dismiss";
 
 type SelectApi = {
   open: Signal<boolean>;
@@ -107,12 +95,10 @@ function SelectValue({ placeholder, class: className }: SelectValueProps) {
   return (
     <span
       data-slot="select-value"
-      data-placeholder={jsxClass(() =>
-        api.value.value ? undefined : "",
-      )}
+      data-placeholder={() => (api.value.value ? undefined : "")}
       class={className}
     >
-      {jsxClass(() => api.label.value || placeholder || api.placeholder || "")}
+      {() => api.label.value || placeholder || api.placeholder || ""}
     </span>
   );
 }
@@ -134,7 +120,7 @@ function SelectTrigger({
       type="button"
       data-slot="select-trigger"
       data-size={size}
-      aria-expanded={jsxClass<boolean>(() => api.open.value)}
+      aria-expanded={() => api.open.value}
       class={cn(
         "flex w-fit items-center justify-between gap-1.5 rounded-lg border border-input bg-transparent py-2 pr-2 pl-2.5 text-sm whitespace-nowrap transition-colors outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 data-placeholder:text-muted-foreground data-[size=default]:h-8 data-[size=sm]:h-7 data-[size=sm]:rounded-[min(var(--radius-md),10px)] *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-1.5 dark:bg-input/30 dark:hover:bg-input/50 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
         className,
@@ -211,10 +197,11 @@ function SelectContent({
 
     const onDoc = (e: MouseEvent) => {
       if (!api.open.value) return;
-      const t = e.target as Node;
+      const t = e.target;
       if (
-        api.triggerEl.value?.contains(t) ||
-        api.contentEl.value?.contains(t)
+        (t instanceof Node && api.triggerEl.value?.contains(t)) ||
+        (t instanceof Node && api.contentEl.value?.contains(t)) ||
+        isDismissExemptPointerTarget(t)
       ) {
         return;
       }
@@ -234,14 +221,14 @@ function SelectContent({
       <UiPortal>
         <div
           data-slot="select-content"
-          data-side={jsxClass(() => side.value)}
+          data-side={() => side.value}
           data-align-trigger={position === "item-aligned" ? "" : undefined}
           role="listbox"
           class={cn(
             "relative z-50 max-h-72 min-w-36 overflow-x-hidden overflow-y-auto rounded-lg bg-popover text-popover-foreground shadow-md ring-1 ring-foreground/10 duration-100 data-[side=bottom]:slide-in-from-top-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95",
             className,
           )}
-          style={jsxClass(() => style.value as unknown as string)}
+          style={() => style.value as unknown as string}
           ref={(el: HTMLElement | null) => {
             api.contentEl.value = el;
           }}
@@ -294,7 +281,7 @@ function SelectItem({
       role="option"
       data-slot="select-item"
       data-disabled={disabled ? "true" : undefined}
-      aria-selected={jsxClass<boolean>(() => selected())}
+      aria-selected={() => selected()}
       disabled={disabled}
       class={cn(
         "relative flex w-full cursor-default items-center gap-1.5 rounded-md py-1 pr-8 pl-1.5 text-sm outline-hidden select-none focus:bg-accent focus:text-accent-foreground data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",

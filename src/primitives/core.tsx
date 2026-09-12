@@ -1,7 +1,6 @@
 import { cc, onMounted, onUnmounted, type SinwanNode } from "sinwan/component";
 import { Portal as SinwanPortal, Show } from "sinwan/component";
 import { signal, type Signal } from "sinwan/reactivity";
-import { jsxClass } from "../lib/utils";
 
 export type PresenceProps = {
   present: boolean | Signal<boolean> | (() => boolean);
@@ -138,4 +137,4 @@ export {
   type UsePointPositionOptions,
 } from "./floating";
 
-export { jsxClass, signal, Show, SinwanPortal };
+export { signal, Show, SinwanPortal };

@@ -1,13 +1,4 @@
-import {
-  cc,
-  inject,
-  onMounted,
-  onUnmounted,
-  provide,
-  Show,
-  type InjectionKey,
-  type SinwanNode,
-} from "sinwan/component";
+import { cc, inject, onMounted, onUnmounted, provide, Show, type InjectionKey, type SinwanNode } from "sinwan/component";
 import { effect, signal, type Signal } from "sinwan/reactivity";
 import { cva, type VariantProps } from "class-variance-authority";
 import { PanelLeft } from "lucide";
@@ -15,24 +6,15 @@ import { PanelLeft } from "lucide";
 import { useIsMobile } from "../../hooks/use-mobile";
 import { Icon } from "../../icons";
 import { Slot } from "../../lib/slot";
-import { cn, jsxClass } from "../../lib/utils";
+import type { InputHTMLProps } from "../../lib/types";
+import { cn } from "../../lib/utils";
 import { DialogKey } from "../../primitives";
 import { Button, type ButtonProps } from "./button";
 import { Input } from "./input";
 import { Separator } from "./separator";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "./sheet";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "./sheet";
 import { Skeleton } from "./skeleton";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "./tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "./tooltip";
 
 const SIDEBAR_COOKIE_NAME = "sidebar_state";
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
@@ -266,10 +248,10 @@ export const Sidebar = cc<SidebarProps>(
         <Show when={() => !isMobile()}>
           <div
             class="group peer hidden text-sidebar-foreground md:block"
-            data-state={jsxClass(() => state())}
-            data-collapsible={jsxClass(() =>
-              state() === "collapsed" ? collapsible : "",
-            )}
+            data-state={() => state()}
+            data-collapsible={() =>
+              state() === "collapsed" ? collapsible : ""
+            }
             data-variant={variant}
             data-side={side}
             data-slot="sidebar"
@@ -390,7 +372,7 @@ export function SidebarInset({
 export function SidebarInput({
   class: className,
   ...props
-}: JSX.IntrinsicElements["input"]) {
+}: InputHTMLProps) {
   return (
     <Input
       data-slot="sidebar-input"

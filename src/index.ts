@@ -85,7 +85,7 @@ export {
   type DirectionProviderProps,
 } from "./theme/direction";
 export { toast, Toaster } from "./toast";
-export { cn, jsxClass } from "./lib/utils";
+export { cn } from "./lib/utils";
 export { Slot } from "./lib/slot";
 export { Icon, type IconProps, type IconNode } from "./icons";
 export { useIsMobile, MOBILE_BREAKPOINT } from "./hooks/use-mobile";

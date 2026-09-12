@@ -1,24 +1,11 @@
-import {
-  cc,
-  inject,
-  onMounted,
-  onUnmounted,
-  provide,
-  Show,
-  type InjectionKey,
-  type SinwanNode,
-} from "sinwan/component";
+import { cc, inject, onMounted, onUnmounted, provide, Show, type InjectionKey, type SinwanNode } from "sinwan/component";
 import { signal, type Signal } from "sinwan/reactivity";
 import { Check, ChevronRight } from "lucide";
 
 import { Icon } from "../../icons";
-import { cn, jsxClass } from "../../lib/utils";
-import {
-  Presence,
-  UiPortal,
-  useAnchorPosition,
-  type Align,
-} from "../../primitives";
+import { cn } from "../../lib/utils";
+import { Presence, UiPortal, useAnchorPosition, type Align } from "../../primitives";
+import { isDismissExemptPointerTarget } from "../../primitives/dismiss";
 
 type MenubarApi = {
   openMenu: Signal<string | null>;
@@ -160,7 +147,7 @@ function MenubarTrigger({ class: className, children }: MenubarTriggerProps) {
     <button
       type="button"
       data-slot="menubar-trigger"
-      aria-expanded={jsxClass<boolean>(() => menu.open.value)}
+      aria-expanded={() => menu.open.value}
       class={cn(
         "flex items-center rounded-sm px-1.5 py-[2px] text-sm font-medium outline-hidden select-none hover:bg-muted aria-expanded:bg-muted",
         className,
@@ -206,10 +193,10 @@ function MenubarContent({
   onMounted(() => {
     function onDoc(e: MouseEvent) {
       if (!menu.open.value) return;
-      const t = e.target as Node;
+      const t = e.target;
       if (
-        menu.triggerEl.value?.contains(t) ||
-        (t instanceof Element && t.closest("[data-slot=menubar-content]"))
+        (t instanceof Node && menu.triggerEl.value?.contains(t)) ||
+        isDismissExemptPointerTarget(t)
       ) {
         return;
       }
@@ -232,13 +219,13 @@ function MenubarContent({
         <div
           data-slot="menubar-content"
           data-open=""
-          data-side={jsxClass(() => side.value)}
+          data-side={() => side.value}
           role="menu"
           class={cn(
             "z-50 min-w-36 overflow-hidden rounded-lg bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10 duration-100 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95",
             className,
           )}
-          style={jsxClass(() => style.value as unknown as string)}
+          style={() => style.value as unknown as string}
           ref={(el: HTMLElement | null) => {
             contentEl.value = el;
           }}
@@ -307,7 +294,6 @@ function MenubarCheckboxItem({
   disabled,
   onCheckedChange,
 }: MenubarCheckboxItemProps) {
-  const menu = inject(MenubarMenuKey)!;
   return (
     <button
       type="button"
@@ -322,7 +308,6 @@ function MenubarCheckboxItem({
       )}
       onclick={() => {
         onCheckedChange?.(!checked);
-        menu.setOpen(false);
       }}
     >
       <span class="pointer-events-none absolute left-1.5 flex size-4 items-center justify-center [&_svg:not([class*='size-'])]:size-4">
@@ -350,14 +335,13 @@ function MenubarRadioItem({
   inset,
   disabled,
 }: MenubarRadioItemProps) {
-  const menu = inject(MenubarMenuKey)!;
   const radio = inject(MenubarRadioKey)!;
   const selected = () => radio.value.value === value;
   return (
     <button
       type="button"
       role="menuitemradio"
-      aria-checked={jsxClass<boolean>(() => selected())}
+      aria-checked={() => selected()}
       data-slot="menubar-radio-item"
       data-inset={inset ? "" : undefined}
       disabled={disabled}
@@ -367,7 +351,6 @@ function MenubarRadioItem({
       )}
       onclick={() => {
         radio.setValue(value);
-        menu.setOpen(false);
       }}
     >
       <span class="pointer-events-none absolute left-1.5 flex size-4 items-center justify-center [&_svg:not([class*='size-'])]:size-4">
@@ -478,7 +461,7 @@ function MenubarSubTrigger({
       type="button"
       data-slot="menubar-sub-trigger"
       data-inset={inset ? "" : undefined}
-      data-open={jsxClass(openAttr)}
+      data-open={openAttr}
       class={cn(
         "flex w-full cursor-default items-center gap-1.5 rounded-md px-1.5 py-1 text-sm outline-hidden select-none focus:bg-accent data-inset:pl-7 data-open:bg-accent [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
         className,

@@ -1,15 +1,7 @@
-import {
-  cc,
-  inject,
-  provide,
-  Show,
-  type InjectionKey,
-  type SinwanComponent,
-  type SinwanNode,
-} from "sinwan/component";
+import { cc, inject, provide, Show, type InjectionKey, type SinwanComponent, type SinwanNode } from "sinwan/component";
 import { signal, type Signal } from "sinwan/reactivity";
 
-import { cn, jsxClass } from "../../lib/utils";
+import { cn } from "../../lib/utils";
 
 type AvatarApi = {
   loaded: Signal<boolean>;
@@ -56,13 +48,13 @@ const AvatarImage: SinwanComponent<AvatarImageProps> = cc(
       <Show when={() => !api.failed.value}>
         <img
           data-slot="avatar-image"
-          class={jsxClass(() =>
+          class={() =>
             cn(
               "aspect-square size-full rounded-full object-cover",
               className,
               api.loaded.value ? undefined : "opacity-0",
-            ),
-          )}
+            )
+          }
           onload={(event) => {
             api.loaded.value = true;
             api.failed.value = false;

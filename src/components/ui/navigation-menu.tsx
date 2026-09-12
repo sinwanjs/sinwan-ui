@@ -1,16 +1,10 @@
-import {
-  cc,
-  inject,
-  provide,
-  type InjectionKey,
-  type SinwanNode,
-} from "sinwan/component";
+import { cc, inject, provide, type InjectionKey, type SinwanNode } from "sinwan/component";
 import { signal, type Signal } from "sinwan/reactivity";
 import { cva } from "class-variance-authority";
 import { ChevronDown } from "lucide";
 
 import { Icon } from "../../icons";
-import { cn, jsxClass } from "../../lib/utils";
+import { cn } from "../../lib/utils";
 import { Presence } from "../../primitives";
 
 type NavMenuApi = {
@@ -140,8 +134,8 @@ function NavigationMenuTrigger({
     <button
       type="button"
       data-slot="navigation-menu-trigger"
-      data-open={jsxClass(() => (item.open.value ? "" : undefined))}
-      aria-expanded={jsxClass<boolean>(() => item.open.value)}
+      data-open={() => (item.open.value ? "" : undefined)}
+      aria-expanded={() => item.open.value}
       class={cn(navigationMenuTriggerStyle(), "group", className)}
       onclick={() => item.setOpen(!item.open.value)}
       onmouseenter={() => item.setOpen(true)}
@@ -171,7 +165,7 @@ function NavigationMenuContent({
     <Presence present={() => item.open.value}>
       <div
         data-slot="navigation-menu-content"
-        data-state={jsxClass(() => (item.open.value ? "open" : "closed"))}
+        data-state={() => (item.open.value ? "open" : "closed")}
         class={cn(
           "top-0 left-0 w-full p-1 ease-[cubic-bezier(0.22,1,0.36,1)] group-data-[viewport=false]/navigation-menu:top-full group-data-[viewport=false]/navigation-menu:mt-1.5 group-data-[viewport=false]/navigation-menu:overflow-hidden group-data-[viewport=false]/navigation-menu:rounded-lg group-data-[viewport=false]/navigation-menu:bg-popover group-data-[viewport=false]/navigation-menu:text-popover-foreground group-data-[viewport=false]/navigation-menu:shadow group-data-[viewport=false]/navigation-menu:ring-1 group-data-[viewport=false]/navigation-menu:ring-foreground/10 group-data-[viewport=false]/navigation-menu:duration-300 md:absolute md:w-auto group-data-[viewport=false]/navigation-menu:data-open:animate-in group-data-[viewport=false]/navigation-menu:data-open:fade-in-0 group-data-[viewport=false]/navigation-menu:data-open:zoom-in-95",
           !root.viewport && "absolute top-full mt-1.5",
@@ -194,9 +188,9 @@ function NavigationMenuViewport({ class: className }: NavigationMenuViewportProp
     <div class="absolute top-full left-0 isolate z-50 flex justify-center">
       <div
         data-slot="navigation-menu-viewport"
-        data-state={jsxClass(() =>
-          root.openItem.value ? "open" : "closed",
-        )}
+        data-state={() =>
+          root.openItem.value ? "open" : "closed"
+        }
         class={cn(
           "origin-top-center relative mt-1.5 w-full overflow-hidden rounded-lg bg-popover text-popover-foreground shadow ring-1 ring-foreground/10 duration-100 md:w-auto data-open:animate-in data-open:zoom-in-90 data-closed:animate-out data-closed:zoom-out-90",
           className,

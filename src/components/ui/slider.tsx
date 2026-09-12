@@ -1,12 +1,7 @@
 import { cc, onUnmounted } from "sinwan/component";
-import {
-  effect,
-  resolve,
-  signal,
-  type Signal,
-} from "sinwan/reactivity";
+import { effect, resolve, signal, type Signal } from "sinwan/reactivity";
 
-import { cn, jsxClass } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 type SliderValue = number | number[];
 type SliderValueInput =
@@ -139,11 +134,11 @@ const Slider = cc<SliderProps>(
               "absolute bg-primary select-none",
               orientation === "vertical" ? "w-full bottom-0" : "h-full left-0",
             )}
-            style={jsxClass(() =>
+            style={() =>
               orientation === "vertical"
                 ? `height: ${percent()}%`
-                : `width: ${percent()}%`,
-            )}
+                : `width: ${percent()}%`
+            }
           />
         </div>
         <input
@@ -156,7 +151,7 @@ const Slider = cc<SliderProps>(
           step={String(step)}
           disabled={disabled}
           aria-orientation={orientation}
-          value={jsxClass(() => String(primary()))}
+          value={() => String(primary())}
           class={cn(
             "absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0 disabled:pointer-events-none disabled:cursor-not-allowed",
             orientation === "vertical" && "[writing-mode:vertical-lr]",
@@ -170,11 +165,11 @@ const Slider = cc<SliderProps>(
           data-slot="slider-thumb"
           aria-hidden="true"
           class="pointer-events-none absolute z-0 size-3 shrink-0 rounded-full border border-ring bg-white ring-ring/50 transition-[color,box-shadow] select-none after:absolute after:-inset-2"
-          style={jsxClass(() =>
+          style={() =>
             orientation === "vertical"
               ? `left: 50%; bottom: ${percent()}%; transform: translate(-50%, 50%)`
-              : `top: 50%; left: ${percent()}%; transform: translate(-50%, -50%)`,
-          )}
+              : `top: 50%; left: ${percent()}%; transform: translate(-50%, -50%)`
+          }
         />
       </div>
     );

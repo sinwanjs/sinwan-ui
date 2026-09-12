@@ -1,20 +1,12 @@
-import {
-  cc,
-  inject,
-  onMounted,
-  onUnmounted,
-  provide,
-  Show,
-  type InjectionKey,
-  type SinwanNode,
-} from "sinwan/component";
+import { cc, inject, onMounted, onUnmounted, provide, Show, type InjectionKey, type SinwanNode } from "sinwan/component";
 import { signal, type Signal } from "sinwan/reactivity";
 import { Check, ChevronRight } from "lucide";
 
 import { Icon } from "../../icons";
 import { Slot } from "../../lib/slot";
-import { cn, jsxClass } from "../../lib/utils";
+import { cn } from "../../lib/utils";
 import { Presence, UiPortal, usePointPosition } from "../../primitives";
+import { isDismissExemptPointerTarget } from "../../primitives/dismiss";
 
 type ContextMenuApi = {
   open: Signal<boolean>;
@@ -131,10 +123,7 @@ function ContextMenuContent({
   onMounted(() => {
     function onDoc(e: MouseEvent) {
       if (!api.open.value) return;
-      const t = e.target as Node;
-      if (t instanceof Element && t.closest("[data-slot=context-menu-content]")) {
-        return;
-      }
+      if (isDismissExemptPointerTarget(e.target)) return;
       api.setOpen(false);
     }
     function onKey(e: KeyboardEvent) {
@@ -154,13 +143,13 @@ function ContextMenuContent({
         <div
           data-slot="context-menu-content"
           data-open=""
-          data-side={jsxClass(() => side.value)}
+          data-side={() => side.value}
           role="menu"
           class={cn(
             "z-50 max-h-96 min-w-36 overflow-x-hidden overflow-y-auto rounded-lg bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10 duration-100 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
             className,
           )}
-          style={jsxClass(() => style.value as unknown as string)}
+          style={() => style.value as unknown as string}
           ref={(el: HTMLElement | null) => {
             contentEl.value = el;
           }}
@@ -229,7 +218,6 @@ function ContextMenuCheckboxItem({
   disabled,
   onCheckedChange,
 }: ContextMenuCheckboxItemProps) {
-  const api = inject(ContextMenuKey)!;
   return (
     <button
       type="button"
@@ -244,7 +232,6 @@ function ContextMenuCheckboxItem({
       )}
       onclick={() => {
         onCheckedChange?.(!checked);
-        api.setOpen(false);
       }}
     >
       <span class="pointer-events-none absolute right-2 flex items-center justify-center">
@@ -307,14 +294,13 @@ function ContextMenuRadioItem({
   inset,
   disabled,
 }: ContextMenuRadioItemProps) {
-  const menu = inject(ContextMenuKey)!;
   const radio = inject(ContextRadioKey)!;
   const selected = () => radio.value.value === value;
   return (
     <button
       type="button"
       role="menuitemradio"
-      aria-checked={jsxClass<boolean>(() => selected())}
+      aria-checked={() => selected()}
       data-slot="context-menu-radio-item"
       data-inset={inset ? "" : undefined}
       disabled={disabled}
@@ -324,7 +310,6 @@ function ContextMenuRadioItem({
       )}
       onclick={() => {
         radio.setValue(value);
-        menu.setOpen(false);
       }}
     >
       <span class="pointer-events-none absolute right-2 flex items-center justify-center">
@@ -442,7 +427,7 @@ function ContextMenuSubTrigger({
       type="button"
       data-slot="context-menu-sub-trigger"
       data-inset={inset ? "" : undefined}
-      data-open={jsxClass(openAttr)}
+      data-open={openAttr}
       class={cn(
         "flex w-full cursor-default items-center gap-1.5 rounded-md px-1.5 py-1 text-sm outline-hidden select-none focus:bg-accent focus:text-accent-foreground data-inset:pl-7 data-open:bg-accent [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
         className,

@@ -1,30 +1,12 @@
-import {
-  cc,
-  inject,
-  provide,
-  Show,
-  type InjectionKey,
-  type SinwanNode,
-} from "sinwan/component";
+import { cc, inject, provide, Show, type InjectionKey, type SinwanNode } from "sinwan/component";
 import { signal, type Signal } from "sinwan/reactivity";
 import { Check, ChevronDown, X } from "lucide";
 
 import { Icon } from "../../icons";
-import { cn, jsxClass } from "../../lib/utils";
-import {
-  PopoverContent as PopoverContentPrimitive,
-  PopoverKey,
-  PopoverRoot,
-  type Align,
-  type Placement,
-} from "../../primitives";
+import { cn } from "../../lib/utils";
+import { PopoverContent as PopoverContentPrimitive, PopoverKey, PopoverRoot, type Align, type Placement } from "../../primitives";
 import { Button } from "./button";
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupButton,
-  InputGroupInput,
-} from "./input-group";
+import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "./input-group";
 
 type ComboboxApi = {
   open: Signal<boolean>;
@@ -123,9 +105,7 @@ function ComboboxValue({ placeholder, class: className }: ComboboxValueProps) {
   const api = inject(ComboboxKey)!;
   return (
     <span data-slot="combobox-value" class={className}>
-      {jsxClass(
-        () => api.label.value || api.value.value || placeholder || "",
-      )}
+      {() => api.label.value || api.value.value || placeholder || ""}
     </span>
   );
 }
@@ -192,7 +172,7 @@ function ComboboxInput({
       <InputGroupInput
         disabled={disabled}
         placeholder={placeholder}
-        value={jsxClass(() => api.query.value || api.label.value)}
+        value={() => api.query.value || api.label.value}
         oninput={(e: Event) => {
           const next = (e.target as HTMLInputElement).value;
           api.setQuery(next);
@@ -337,7 +317,7 @@ function ComboboxItem({
         role="option"
         data-slot="combobox-item"
         data-highlighted={undefined}
-        aria-selected={jsxClass<boolean>(() => selected())}
+        aria-selected={() => selected()}
         disabled={disabled}
         class={cn(
           "relative flex w-full cursor-default items-center gap-2 rounded-md py-1 pr-8 pl-1.5 text-sm outline-hidden select-none hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",

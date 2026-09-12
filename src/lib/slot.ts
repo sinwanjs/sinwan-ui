@@ -1,9 +1,23 @@
 import type { SinwanElement, SinwanNode } from "sinwan/component";
+import { resolve } from "sinwan/reactivity";
 import { flattenChildren, isSinwanElement } from "./types";
 
 type AnyProps = Record<string, unknown>;
 
-function mergeClass(a: unknown, b: unknown): string | undefined {
+function classText(value: unknown): string {
+  const resolved = resolve(value);
+  return typeof resolved === "string" ? resolved : "";
+}
+
+function mergeClass(a: unknown, b: unknown): unknown {
+  if (typeof a === "function" || typeof b === "function") {
+    return () => {
+      const parts = [classText(a), classText(b)].filter(
+        (part) => part.length > 0,
+      );
+      return parts.length === 0 ? undefined : parts.join(" ");
+    };
+  }
   const parts = [a, b].filter((v) => typeof v === "string" && v.length > 0);
   if (parts.length === 0) return undefined;
   return parts.join(" ");

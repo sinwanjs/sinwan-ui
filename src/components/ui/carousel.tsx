@@ -1,16 +1,9 @@
-import {
-  cc,
-  inject,
-  provide,
-  type InjectionKey,
-  type SinwanComponent,
-  type SinwanNode,
-} from "sinwan/component";
+import { cc, inject, provide, type InjectionKey, type SinwanComponent, type SinwanNode } from "sinwan/component";
 import { computed, signal, type Signal } from "sinwan/reactivity";
 import { ChevronLeft, ChevronRight } from "lucide";
 
 import { Icon } from "../../icons";
-import { cn, jsxClass } from "../../lib/utils";
+import { cn } from "../../lib/utils";
 import { Button, type ButtonProps } from "./button";
 
 export type CarouselApi = {
@@ -148,11 +141,11 @@ export const CarouselContent: SinwanComponent<CarouselContentProps> = cc(
             orientation === "horizontal" ? "-ml-4" : "-mt-4 flex-col",
             className,
           )}
-          style={jsxClass(() =>
+          style={() =>
             orientation === "horizontal"
               ? { transform: `translateX(-${index.value * 100}%)` }
-              : { transform: `translateY(-${index.value * 100}%)` },
-          )}
+              : { transform: `translateY(-${index.value * 100}%)` }
+          }
           {...props}
         />
       </div>
@@ -206,9 +199,7 @@ export const CarouselPrevious: SinwanComponent<CarouselControlProps> = cc(
             : "-top-12 left-1/2 -translate-x-1/2 rotate-90",
           className,
         )}
-        data-disabled={jsxClass(() =>
-          !canScrollPrev() ? "" : undefined,
-        )}
+        data-disabled={() => (!canScrollPrev() ? "" : undefined)}
         onclick={() => {
           if (canScrollPrev()) scrollPrev();
         }}
@@ -242,9 +233,7 @@ export const CarouselNext: SinwanComponent<CarouselControlProps> = cc(
             : "-bottom-12 left-1/2 -translate-x-1/2 rotate-90",
           className,
         )}
-        data-disabled={jsxClass(() =>
-          !canScrollNext() ? "" : undefined,
-        )}
+        data-disabled={() => (!canScrollNext() ? "" : undefined)}
         onclick={() => {
           if (canScrollNext()) scrollNext();
         }}

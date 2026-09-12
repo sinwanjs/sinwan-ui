@@ -1,15 +1,7 @@
-import {
-  cc,
-  inject,
-  onMounted,
-  onUnmounted,
-  provide,
-  type InjectionKey,
-  type SinwanNode,
-} from "sinwan/component";
+import { cc, inject, onMounted, onUnmounted, provide, type InjectionKey, type SinwanNode } from "sinwan/component";
 import { signal } from "sinwan/reactivity";
 
-import { cn, jsxClass } from "../../lib/utils";
+import { cn } from "../../lib/utils";
 
 function svgNode(
   tag: string,
@@ -462,9 +454,9 @@ export const ChartBar = cc<ChartBarProps>(
       <svg
         data-slot="chart-bar"
         class={cn("size-full", className)}
-        width={jsxClass(() => chart.width())}
-        height={jsxClass(() => chart.height())}
-        viewBox={jsxClass(() => `0 0 ${chart.width()} ${chart.height()}`)}
+        width={() => chart.width()}
+        height={() => chart.height()}
+        viewBox={() => `0 0 ${chart.width()} ${chart.height()}`}
       >
         {() => {
           const w = chart.width();
@@ -531,14 +523,12 @@ export const ChartLine = cc<ChartLineProps>(
       <svg
         data-slot="chart-line"
         class={cn("size-full", className)}
-        width={jsxClass(() => chart.width())}
-        height={jsxClass(() => chart.height())}
-        viewBox={jsxClass(() => `0 0 ${chart.width()} ${chart.height()}`)}
+        width={() => chart.width()}
+        height={() => chart.height()}
+        viewBox={() => `0 0 ${chart.width()} ${chart.height()}`}
       >
         {svgNode("path", {
-          d: jsxClass(() =>
-            linePath(data, dataKey, chart.width(), chart.height()),
-          ),
+          d: () => linePath(data, dataKey, chart.width(), chart.height()),
           fill: "none",
           stroke: stroke ?? seriesColor(chart.config, dataKey),
           "stroke-width": strokeWidth,
@@ -559,9 +549,9 @@ export const ChartArea = cc<ChartAreaProps>(
       <svg
         data-slot="chart-area"
         class={cn("size-full", className)}
-        width={jsxClass(() => chart.width())}
-        height={jsxClass(() => chart.height())}
-        viewBox={jsxClass(() => `0 0 ${chart.width()} ${chart.height()}`)}
+        width={() => chart.width()}
+        height={() => chart.height()}
+        viewBox={() => `0 0 ${chart.width()} ${chart.height()}`}
       >
         {() => {
           const w = chart.width();
@@ -634,9 +624,9 @@ export const ChartPie = cc<ChartPieProps>(
       <svg
         data-slot="chart-pie"
         class={cn("size-full", className)}
-        width={jsxClass(() => chart.width())}
-        height={jsxClass(() => chart.height())}
-        viewBox={jsxClass(() => `0 0 ${chart.width()} ${chart.height()}`)}
+        width={() => chart.width()}
+        height={() => chart.height()}
+        viewBox={() => `0 0 ${chart.width()} ${chart.height()}`}
       >
         {() => {
           const w = chart.width();

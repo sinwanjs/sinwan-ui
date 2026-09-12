@@ -1,36 +1,18 @@
 import { describe, expect, test } from "bun:test";
 import { Loader2 } from "lucide";
-import { cn, jsxClass } from "../src/lib/utils";
+import { cn } from "../src/lib/utils";
 import { Slot } from "../src/lib/slot";
 import { flattenChildren, isSinwanElement } from "../src/lib/types";
 import { Icon } from "../src/icons";
-import {
-  basePlacement,
-  computePosition,
-  createPointReference,
-  createRectReference,
-  createSizeFloating,
-  estimatePosition,
-  getFocusableElements,
-  readDocumentRtl,
-  toFloatingPlacement,
-  trapFocus,
-  useAnchorPosition,
-  usePointPosition,
-} from "../src/primitives/core";
+import { basePlacement, computePosition, createPointReference, createRectReference, createSizeFloating, estimatePosition, getFocusableElements, readDocumentRtl, toFloatingPlacement, trapFocus, useAnchorPosition, usePointPosition } from "../src/primitives/core";
 import { cc } from "sinwan/component";
 import { signal } from "sinwan/reactivity";
 import { setupDom, teardownDom, asVNode, mountUi } from "./helpers";
 
-describe("cn / jsxClass", () => {
+describe("cn", () => {
   test("merges tailwind classes", () => {
     expect(cn("px-2", "px-4")).toBe("px-4");
     expect(cn("text-sm", false && "hidden", "font-medium")).toContain("text-sm");
-  });
-
-  test("jsxClass casts values", () => {
-    expect(jsxClass(() => "x")).toBeTypeOf("function");
-    expect(jsxClass<boolean>(true)).toBe(true);
   });
 });
 
@@ -65,6 +47,60 @@ describe("Slot", () => {
     expect(result.props.class).toBe("child slot");
     (result.props.onclick as () => void)();
     expect(clicked).toBe(1);
+  });
+
+  test("merges getter class props", () => {
+    const child = {
+      tag: "a",
+      props: { class: () => "child" },
+      children: ["Go"],
+    };
+    const result = asVNode(
+      Slot({
+        class: () => "slot",
+        children: child,
+      }),
+    );
+    expect(typeof result.props.class).toBe("function");
+    expect((result.props.class as () => string)()).toBe("child slot");
+  });
+
+  test("merges string child class with getter slot class", () => {
+    const result = asVNode(
+      Slot({
+        class: () => "slot",
+        children: {
+          tag: "a",
+          props: { class: "child" },
+          children: ["Go"],
+        },
+      }),
+    );
+    expect((result.props.class as () => string)()).toBe("child slot");
+  });
+
+  test("drops class when neither side has a string", () => {
+    const child = {
+      tag: "span",
+      props: { class: "" },
+      children: ["x"],
+    };
+    const result = asVNode(Slot({ class: 1, children: child }));
+    expect(result.props.class).toBeUndefined();
+  });
+
+  test("getter class merge with non-strings resolves empty", () => {
+    const result = asVNode(
+      Slot({
+        class: () => 1,
+        children: {
+          tag: "span",
+          props: { class: () => null },
+          children: ["x"],
+        },
+      }),
+    );
+    expect((result.props.class as () => unknown)()).toBeUndefined();
   });
 
   test("throws without a single element child", () => {
@@ -241,9 +277,9 @@ describe("position / focus helpers", () => {
         return (
           <div
             data-slot="probe"
-            data-ready={jsxClass(() => (ready.value ? "true" : undefined))}
-            data-present={jsxClass(() => (present() ? "true" : undefined))}
-            style={jsxClass(() => style.value as unknown as string)}
+            data-ready={() => (ready.value ? "true" : undefined)}
+            data-present={() => (present() ? "true" : undefined)}
+            style={() => style.value as unknown as string}
           />
         );
       });
@@ -277,9 +313,9 @@ describe("position / focus helpers", () => {
         return (
           <div
             data-slot="point"
-            data-ready={jsxClass(() => (ready.value ? "true" : undefined))}
-            data-present={jsxClass(() => (present() ? "true" : undefined))}
-            style={jsxClass(() => style.value as unknown as string)}
+            data-ready={() => (ready.value ? "true" : undefined)}
+            data-present={() => (present() ? "true" : undefined)}
+            style={() => style.value as unknown as string}
           />
         );
       });
@@ -324,8 +360,8 @@ describe("position / focus helpers", () => {
         return (
           <div
             data-slot="auto-update-probe"
-            data-anchor={jsxClass(() => (anchor.present() ? "yes" : "no"))}
-            data-point={jsxClass(() => (point.present() ? "yes" : "no"))}
+            data-anchor={() => (anchor.present() ? "yes" : "no")}
+            data-point={() => (point.present() ? "yes" : "no")}
           />
         );
       });
