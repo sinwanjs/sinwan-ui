@@ -37,11 +37,12 @@ afterEach(() => teardownDom());
 const wait = (ms = 40) => new Promise((r) => setTimeout(r, ms));
 
 describe("overlay open sync", () => {
-  test("controlled dialog signal open/close", async () => {
+  test("controlled dialog getter open/close", async () => {
     const open = signal(false);
     const ui = mountUi(() => (
       <Dialog
-        open={open}
+        // @ts-expect-error uncompiled live getter
+        open={() => open.value}
         onOpenChange={(v) => {
           open.value = v;
         }}

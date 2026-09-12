@@ -3,6 +3,7 @@ import { Loader2 } from "lucide";
 import { cn } from "../src/lib/utils";
 import { Slot } from "../src/lib/slot";
 import { flattenChildren, isSinwanElement } from "../src/lib/types";
+import { createLiveState } from "../src/lib/live-state";
 import { Icon } from "../src/icons";
 import { basePlacement, computePosition, createPointReference, createRectReference, createSizeFloating, estimatePosition, getFocusableElements, readDocumentRtl, toFloatingPlacement, trapFocus, useAnchorPosition, usePointPosition } from "../src/primitives/core";
 import { cc } from "sinwan/component";
@@ -13,6 +14,32 @@ describe("cn", () => {
   test("merges tailwind classes", () => {
     expect(cn("px-2", "px-4")).toBe("px-4");
     expect(cn("text-sm", false && "hidden", "font-medium")).toContain("text-sm");
+  });
+});
+
+describe("createLiveState", () => {
+  test("reads the parent getter when controlled and ignores set", () => {
+    let current = "a";
+    const { state, set, local } = createLiveState(
+      true,
+      "default",
+      () => current,
+    );
+    expect(state.value).toBe("a");
+    expect(local.value).toBe("default");
+    set("b");
+    expect(state.value).toBe("a");
+    expect(local.value).toBe("default");
+    current = "c";
+    expect(state.value).toBe("c");
+  });
+
+  test("uses the local signal when uncontrolled", () => {
+    const { state, set, local } = createLiveState(false, "default", () => "ignored");
+    expect(state.value).toBe("default");
+    set("next");
+    expect(state.value).toBe("next");
+    expect(local.value).toBe("next");
   });
 });
 
@@ -47,6 +74,20 @@ describe("Slot", () => {
     expect(result.props.class).toBe("child slot");
     (result.props.onclick as () => void)();
     expect(clicked).toBe(1);
+  });
+
+  test("drops non-string class values", () => {
+    const result = asVNode(
+      Slot({
+        class: 1 as unknown as string,
+        children: {
+          tag: "span",
+          props: {},
+          children: ["x"],
+        },
+      }),
+    );
+    expect(result.props.class).toBeUndefined();
   });
 
   test("merges getter class props", () => {
@@ -278,7 +319,7 @@ describe("position / focus helpers", () => {
           <div
             data-slot="probe"
             data-ready={() => (ready.value ? "true" : undefined)}
-            data-present={() => (present() ? "true" : undefined)}
+            data-present={() => (present.value ? "true" : undefined)}
             style={() => style.value as unknown as string}
           />
         );
@@ -314,7 +355,7 @@ describe("position / focus helpers", () => {
           <div
             data-slot="point"
             data-ready={() => (ready.value ? "true" : undefined)}
-            data-present={() => (present() ? "true" : undefined)}
+            data-present={() => (present.value ? "true" : undefined)}
             style={() => style.value as unknown as string}
           />
         );
@@ -360,8 +401,8 @@ describe("position / focus helpers", () => {
         return (
           <div
             data-slot="auto-update-probe"
-            data-anchor={() => (anchor.present() ? "yes" : "no")}
-            data-point={() => (point.present() ? "yes" : "no")}
+            data-anchor={() => (anchor.present.value ? "yes" : "no")}
+            data-point={() => (point.present.value ? "yes" : "no")}
           />
         );
       });

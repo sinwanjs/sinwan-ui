@@ -1,4 +1,4 @@
-import type { SinwanNode } from "sinwan/component";
+import { getRawProps, type SinwanNode } from "sinwan/component";
 
 import { cn } from "../../lib/utils";
 import {
@@ -20,15 +20,10 @@ type DrawerProps = {
   direction?: DrawerDirection;
 };
 
-function Drawer({
-  children,
-  open,
-  defaultOpen,
-  onOpenChange,
-  direction = "bottom",
-}: DrawerProps) {
+function Drawer(props: DrawerProps) {
+  const { children, direction = "bottom", ...rest } = getRawProps(props);
   return (
-    <DialogRoot open={open} defaultOpen={defaultOpen} onOpenChange={onOpenChange}>
+    <DialogRoot {...rest}>
       <div data-drawer-direction={direction} class="contents">
         {children}
       </div>

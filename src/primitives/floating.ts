@@ -259,7 +259,7 @@ export type FloatingPosition = {
   ready: Signal<boolean>;
   /** Resolved base side after Floating UI flip (for `data-side`). */
   side: Signal<Placement>;
-  present: () => boolean;
+  present: { readonly value: boolean };
 };
 
 function applyFixedStyle(
@@ -443,7 +443,16 @@ export function useAnchorPosition(
     });
   });
 
-  return { style, ready, side, present };
+  return {
+    style,
+    ready,
+    side,
+    present: {
+      get value() {
+        return present();
+      },
+    },
+  };
 }
 
 export type UsePointPositionOptions = {
@@ -562,5 +571,14 @@ export function usePointPosition(
     });
   });
 
-  return { style, ready, side, present };
+  return {
+    style,
+    ready,
+    side,
+    present: {
+      get value() {
+        return present();
+      },
+    },
+  };
 }

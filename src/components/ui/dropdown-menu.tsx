@@ -5,7 +5,7 @@ import { Check, ChevronRight } from "lucide";
 import { Icon } from "../../icons";
 import { Slot } from "../../lib/slot";
 import { cn } from "../../lib/utils";
-import { Presence, UiPortal, useAnchorPosition, type Align } from "../../primitives";
+import { UiPortal, useAnchorPosition, type Align } from "../../primitives";
 import { isDismissExemptPointerTarget } from "../../primitives/dismiss";
 
 type MenuApi = {
@@ -143,7 +143,7 @@ function DropdownMenuContent({
   });
 
   return (
-    <Presence present={present}>
+    <Show when={() => present.value} fallback={null}>
       <UiPortal>
         <div
           data-slot="dropdown-menu-content"
@@ -162,7 +162,7 @@ function DropdownMenuContent({
           {children}
         </div>
       </UiPortal>
-    </Presence>
+    </Show>
   );
 }
 
@@ -482,14 +482,11 @@ function DropdownMenuSubContent({
   children,
 }: DropdownMenuSubContentProps) {
   const api = inject(DropdownSubKey)!;
-  function isOpen() {
-    return api.open.value;
-  }
   function closeSub() {
     api.setOpen(false);
   }
   return (
-    <Presence present={isOpen}>
+    <Show when={() => api.open.value} fallback={null}>
       <div
         data-slot="dropdown-menu-sub-content"
         data-open=""
@@ -501,7 +498,7 @@ function DropdownMenuSubContent({
       >
         {children}
       </div>
-    </Presence>
+    </Show>
   );
 }
 

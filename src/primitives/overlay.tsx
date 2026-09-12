@@ -1,35 +1,33 @@
-import { cc, inject, onMounted, onUnmounted, provide, type InjectionKey, type SinwanNode } from "sinwan/component";
-import { signal, effect, resolve, type Signal } from "sinwan/reactivity";
+import { cc, inject, onMounted, onUnmounted, provide, Show, type InjectionKey, type SinwanNode } from "sinwan/component";
+import { signal } from "sinwan/reactivity";
+import { createLiveState, type Live } from "../lib/live-state";
 import { Slot } from "../lib/slot";
-import type { ReactiveProp } from "../lib/types";
 
-import { Presence, UiPortal, useAnchorPosition, trapFocus, type Align, type Placement } from "./core";
+import { UiPortal, useAnchorPosition, trapFocus, type Align, type Placement } from "./core";
 import { isDismissExemptPointerTarget } from "./dismiss";
 
 export type OpenApi = {
-  open: Signal<boolean>;
+  open: Live<boolean>;
   setOpen: (value: boolean) => void;
-  triggerEl: Signal<HTMLElement | null>;
+  triggerEl: ReturnType<typeof signal<HTMLElement | null>>;
   requestClose: (delayMs?: number) => void;
   cancelClose: () => void;
   isHoverOpenBlocked: () => boolean;
   setPointerOverTrigger: (over: boolean) => void;
 };
 
-function createOpenState(
-  openProp: ReactiveProp<boolean> | undefined,
-  defaultOpen: boolean,
-  onOpenChange?: (open: boolean) => void,
-): OpenApi {
-  const controlled = openProp !== undefined;
-  const open = signal(controlled ? resolve(openProp) : defaultOpen);
-  if (controlled) {
-    const stop = effect(() => {
-      const next = resolve(openProp);
-      if (next !== open.value) open.value = next;
-    });
-    onUnmounted(stop);
-  }
+type OpenProps = {
+  open?: boolean;
+  defaultOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
+};
+
+function createOpenState(props: OpenProps): OpenApi {
+  const { state: open, set } = createLiveState(
+    "open" in props,
+    props.defaultOpen ?? false,
+    () => Boolean(props.open),
+  );
   let closeTimer: number | undefined;
   let pointerOverTrigger = false;
   let hoverOpenBlocked = false;
@@ -44,8 +42,8 @@ function createOpenState(
   function setOpen(value: boolean) {
     cancelClose();
     if (!value && pointerOverTrigger) hoverOpenBlocked = true;
-    open.value = value;
-    onOpenChange?.(value);
+    set(value);
+    props.onOpenChange?.(value);
   }
 
   function requestClose(delayMs = 0) {
@@ -84,18 +82,16 @@ export const DialogKey: InjectionKey<OpenApi> = Symbol("sinwan-ui.dialog");
 
 export type DialogRootProps = {
   children?: SinwanNode;
-  open?: ReactiveProp<boolean>;
+  open?: boolean;
   defaultOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
 };
 
-export const DialogRoot = cc<DialogRootProps>(
-  ({ children, open: openProp, defaultOpen = false, onOpenChange }) => {
-    const api = createOpenState(openProp, defaultOpen, onOpenChange);
-    provide(DialogKey, api);
-    return <>{children}</>;
-  },
-);
+export const DialogRoot = cc<DialogRootProps>((props) => {
+  const api = createOpenState(props);
+  provide(DialogKey, api);
+  return <>{props.children}</>;
+});
 
 export const DialogTrigger = cc<{
   children?: SinwanNode;
@@ -159,14 +155,11 @@ export const DialogClose = cc<{
 
 export const DialogOverlay = cc<{ class?: string }>(({ class: className }) => {
   const api = inject(DialogKey)!;
-  function isOpen() {
-    return api.open.value;
-  }
   function dismiss() {
     api.setOpen(false);
   }
   return (
-    <Presence present={isOpen}>
+    <Show when={() => api.open.value} fallback={null}>
       <UiPortal>
         <div
           data-slot="dialog-overlay"
@@ -175,7 +168,7 @@ export const DialogOverlay = cc<{ class?: string }>(({ class: className }) => {
           onclick={dismiss}
         />
       </UiPortal>
-    </Presence>
+    </Show>
   );
 });
 
@@ -217,9 +210,7 @@ export const DialogContent = cc<{
   });
 
   return (
-    <Presence present={function presentOpen() {
-      return api.open.value;
-    }}>
+    <Show when={() => api.open.value} fallback={null}>
       <UiPortal>
         <div
           role="dialog"
@@ -247,14 +238,14 @@ export const DialogContent = cc<{
           {children}
         </div>
       </UiPortal>
-    </Presence>
+    </Show>
   );
 });
 
 // ─── Collapsible ────────────────────────────────────────────
 
 export const CollapsibleKey: InjectionKey<{
-  open: Signal<boolean>;
+  open: Live<boolean>;
   setOpen: (v: boolean) => void;
 }> = Symbol("sinwan-ui.collapsible");
 
@@ -264,14 +255,17 @@ export const CollapsibleRoot = cc<{
   defaultOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
   class?: string;
-}>(({ children, open: openProp, defaultOpen = false, onOpenChange, class: className }) => {
-  const open = signal(openProp ?? defaultOpen);
-  if (openProp !== undefined) open.value = openProp;
+}>((props) => {
+  const { state: open, set } = createLiveState(
+    "open" in props,
+    props.defaultOpen ?? false,
+    () => Boolean(props.open),
+  );
   provide(CollapsibleKey, {
     open,
     setOpen: function setOpen(v: boolean) {
-      open.value = v;
-      onOpenChange?.(v);
+      set(v);
+      props.onOpenChange?.(v);
     },
   });
   return (
@@ -280,9 +274,9 @@ export const CollapsibleRoot = cc<{
       data-state={function stateAttr() {
         return open.value ? "open" : "closed";
       }}
-      class={className}
+      class={props.class}
     >
-      {children}
+      {props.children}
     </div>
   );
 });
@@ -323,14 +317,11 @@ export const CollapsibleContent = cc<{
   class?: string;
 }>(({ children, class: className }) => {
   const api = inject(CollapsibleKey)!;
-  function isOpen() {
-    return api.open.value;
-  }
   function stateAttr() {
     return api.open.value ? "open" : "closed";
   }
   return (
-    <Presence present={isOpen}>
+    <Show when={() => api.open.value} fallback={null}>
       <div
         data-slot="collapsible-content"
         data-state={stateAttr}
@@ -338,7 +329,7 @@ export const CollapsibleContent = cc<{
       >
         {children}
       </div>
-    </Presence>
+    </Show>
   );
 });
 
@@ -350,22 +341,19 @@ export const PopoverKey: InjectionKey<
 
 export const PopoverRoot = cc<{
   children?: SinwanNode;
-  open?: ReactiveProp<boolean>;
+  open?: boolean;
   defaultOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
   placement?: Placement;
   align?: Align;
-}>(({
-  children,
-  open: openProp,
-  defaultOpen = false,
-  onOpenChange,
-  placement = "bottom",
-  align = "center",
-}) => {
-  const api = createOpenState(openProp, defaultOpen, onOpenChange);
-  provide(PopoverKey, { ...api, placement, align });
-  return <>{children}</>;
+}>((props) => {
+  const api = createOpenState(props);
+  provide(PopoverKey, {
+    ...api,
+    placement: props.placement ?? "bottom",
+    align: props.align ?? "center",
+  });
+  return <>{props.children}</>;
 });
 
 export const PopoverTrigger = cc<{
@@ -458,7 +446,7 @@ export const PopoverContent = cc<{
   });
 
   return (
-    <Presence present={present}>
+    <Show when={() => present.value} fallback={null}>
       <UiPortal>
         <div
           data-slot="popover-content"
@@ -478,7 +466,7 @@ export const PopoverContent = cc<{
           {children}
         </div>
       </UiPortal>
-    </Presence>
+    </Show>
   );
 });
 
@@ -496,13 +484,13 @@ export const TooltipProvider = cc<{
 
 export const TooltipRoot = cc<{
   children?: SinwanNode;
-  open?: ReactiveProp<boolean>;
+  open?: boolean;
   defaultOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
-}>(({ children, open: openProp, defaultOpen = false, onOpenChange }) => {
-  const api = createOpenState(openProp, defaultOpen, onOpenChange);
+}>((props) => {
+  const api = createOpenState(props);
   provide(TooltipKey, api);
-  return <>{children}</>;
+  return <>{props.children}</>;
 });
 
 export const TooltipTrigger = cc<{
@@ -559,7 +547,7 @@ export const TooltipContent = cc<{
   });
 
   return (
-    <Presence present={present}>
+    <Show when={() => present.value} fallback={null}>
       <UiPortal>
         <div
           role="tooltip"
@@ -576,6 +564,6 @@ export const TooltipContent = cc<{
           {children}
         </div>
       </UiPortal>
-    </Presence>
+    </Show>
   );
 });

@@ -4,14 +4,15 @@ import { Check, ChevronDown, X } from "lucide";
 
 import { Icon } from "../../icons";
 import { cn } from "../../lib/utils";
+import { createLiveState, type Live } from "../../lib/live-state";
 import { PopoverContent as PopoverContentPrimitive, PopoverKey, PopoverRoot, type Align, type Placement } from "../../primitives";
 import { Button } from "./button";
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "./input-group";
 
 type ComboboxApi = {
-  open: Signal<boolean>;
+  open: Live<boolean>;
   setOpen: (value: boolean) => void;
-  value: Signal<string>;
+  value: Live<string>;
   setValue: (value: string, label?: string) => void;
   label: Signal<string>;
   query: Signal<string>;
@@ -34,67 +35,61 @@ type ComboboxProps = {
   multiple?: boolean;
 };
 
-const Combobox = cc<ComboboxProps>(
-  ({
-    children,
-    value: valueProp,
-    defaultValue = "",
-    onValueChange,
-    open: openProp,
-    defaultOpen = false,
-    onOpenChange,
-    multiple = false,
-  }) => {
-    const open = signal(openProp ?? defaultOpen);
-    const value = signal(valueProp ?? defaultValue);
-    const label = signal("");
-    const query = signal("");
-    const values = signal<string[]>([]);
-    if (openProp !== undefined) open.value = openProp;
-    if (valueProp !== undefined) value.value = valueProp;
+const Combobox = cc<ComboboxProps>((props) => {
+  const { state: open, set: setOpenLocal } = createLiveState(
+    "open" in props,
+    props.defaultOpen ?? false,
+    () => Boolean(props.open),
+  );
+  const { state: value, set: setValueLocal } = createLiveState(
+    "value" in props,
+    props.defaultValue ?? "",
+    () => props.value ?? "",
+  );
+  const label = signal("");
+  const query = signal("");
+  const values = signal<string[]>([]);
 
-    const api: ComboboxApi = {
-      open,
-      setOpen: (v: boolean) => {
-        open.value = v;
-        onOpenChange?.(v);
-      },
-      value,
-      setValue: (v: string, text?: string) => {
-        value.value = v;
-        if (text !== undefined) label.value = text;
-        onValueChange?.(v);
-        open.value = false;
-        onOpenChange?.(false);
-      },
-      label,
-      query,
-      setQuery: (v: string) => {
-        query.value = v;
-      },
-      multiple,
-      values,
-      setValues: (next) => {
-        values.value = next;
-      },
-    };
+  const api: ComboboxApi = {
+    open,
+    setOpen: (v: boolean) => {
+      setOpenLocal(v);
+      props.onOpenChange?.(v);
+    },
+    value,
+    setValue: (v: string, text?: string) => {
+      setValueLocal(v);
+      if (text !== undefined) label.value = text;
+      props.onValueChange?.(v);
+      setOpenLocal(false);
+      props.onOpenChange?.(false);
+    },
+    label,
+    query,
+    setQuery: (v: string) => {
+      query.value = v;
+    },
+    multiple: props.multiple ?? false,
+    values,
+    setValues: (next) => {
+      values.value = next;
+    },
+  };
 
-    provide(ComboboxKey, api);
+  provide(ComboboxKey, api);
 
-    return (
-      <PopoverRoot
-        open={undefined}
-        defaultOpen={defaultOpen}
-        onOpenChange={(v) => {
-          open.value = v;
-          onOpenChange?.(v);
-        }}
-      >
-        {children}
-      </PopoverRoot>
-    );
-  },
-);
+  return (
+    <PopoverRoot
+      defaultOpen={props.defaultOpen ?? false}
+      onOpenChange={(v) => {
+        setOpenLocal(v);
+        props.onOpenChange?.(v);
+      }}
+    >
+      {props.children}
+    </PopoverRoot>
+  );
+});
 
 type ComboboxValueProps = {
   placeholder?: string;

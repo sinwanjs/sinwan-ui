@@ -1,4 +1,4 @@
-import type { SinwanNode } from "sinwan/component";
+import { getRawProps, type SinwanNode } from "sinwan/component";
 import { ChevronDown, ChevronUp } from "lucide";
 
 import { Icon } from "@/icons";
@@ -20,11 +20,12 @@ type AccordionProps = {
   collapsible?: boolean;
 };
 
-function Accordion({ class: className, ...props }: AccordionProps) {
+function Accordion(props: AccordionProps) {
+  const { class: className, ...rest } = getRawProps(props);
   return (
     <AccordionRoot
       class={cn("flex w-full flex-col", className)}
-      {...props}
+      {...rest}
     />
   );
 }

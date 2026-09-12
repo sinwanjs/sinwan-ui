@@ -162,11 +162,11 @@ export const SidebarProvider = cc<SidebarProviderProps>(
   },
 );
 
-const SheetOpenSync = cc<{ open: () => boolean }>(({ open }) => {
+const SheetOpenSync = cc<{ open: boolean }>((props) => {
   const api = inject(DialogKey);
   if (api) {
     effect(() => {
-      api.setOpen(open());
+      api.setOpen(Boolean(props.open));
     });
   }
   return null;
@@ -216,7 +216,7 @@ export const Sidebar = cc<SidebarProps>(
       <>
         <Show when={() => isMobile()}>
           <Sheet onOpenChange={setOpenMobile}>
-            <SheetOpenSync open={() => openMobile.value} />
+            <SheetOpenSync open={openMobile.value} />
             <SheetContent
               dir={dir}
               data-sidebar="sidebar"

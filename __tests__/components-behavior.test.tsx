@@ -154,6 +154,7 @@ describe("Button behavior", () => {
     let clicks = 0;
     const { query, unmount } = mountUi(() => (
       <Button
+        // @ts-expect-error uncompiled live getter
         isLoading={() => loading.value}
         onclick={() => {
           clicks += 1;
@@ -180,7 +181,9 @@ describe("Button behavior", () => {
     const theme = signal("light");
     const { query, unmount } = mountUi(() => (
       <Button
+        // @ts-expect-error uncompiled live getter
         variant={() => (theme.value === "dark" ? "default" : "outline")}
+        // @ts-expect-error uncompiled live getter
         size={() => (theme.value === "dark" ? "lg" : "sm")}
       >
         Dark
@@ -200,6 +203,7 @@ describe("Button behavior", () => {
   test("disabled getter and idle click without onclick stay enabled", async () => {
     const off = signal(false);
     const { query, unmount } = mountUi(() => (
+      // @ts-expect-error uncompiled live getter
       <Button disabled={() => off.value}>Idle</Button>
     ));
     const btn = query("[data-slot=button]") as HTMLButtonElement;
@@ -218,6 +222,7 @@ describe("Button behavior", () => {
     const { query, unmount } = mountUi(() => (
       <Button
         asChild
+        // @ts-expect-error uncompiled live getter
         variant={() => (theme.value === "dark" ? "default" : "outline")}
         onclick={() => {
           clicks += 1;
@@ -490,15 +495,27 @@ describe("Select Tabs Checkbox Switch Toggle", () => {
     unmount();
   });
 
-  test("checkbox toggle and toggle-group accept Signal props", async () => {
+  test("checkbox toggle and toggle-group stay live via getters", async () => {
     const checked = signal(false);
     const pressed = signal(false);
     const group = signal<string | string[]>("a");
     const { root, unmount } = mountUi(() => (
       <>
-        <Checkbox checked={checked} />
-        <Toggle pressed={pressed}>Bold</Toggle>
-        <ToggleGroup type="single" value={group}>
+        <Checkbox
+          // @ts-expect-error uncompiled live getter
+          checked={() => checked.value}
+        />
+        <Toggle
+          // @ts-expect-error uncompiled live getter
+          pressed={() => pressed.value}
+        >
+          Bold
+        </Toggle>
+        <ToggleGroup
+          type="single"
+          // @ts-expect-error uncompiled live getter
+          value={() => group.value}
+        >
           <ToggleGroupItem value="a">A</ToggleGroupItem>
           <ToggleGroupItem value="b">B</ToggleGroupItem>
         </ToggleGroup>
@@ -532,7 +549,8 @@ describe("Select Tabs Checkbox Switch Toggle", () => {
   test("checkbox indeterminate shows mixed indicator", async () => {
     const mixed = signal(true);
     const { root, click, unmount } = mountUi(() => (
-      <Checkbox aria-label="Mixed" checked={false} indeterminate={mixed} />
+      // @ts-expect-error uncompiled live getter
+      <Checkbox aria-label="Mixed" checked={false} indeterminate={() => mixed.value} />
     ));
     const box = root.querySelector('[data-slot="checkbox"]');
     expect(box?.getAttribute("data-state")).toBe("indeterminate");

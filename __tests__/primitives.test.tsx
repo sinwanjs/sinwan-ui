@@ -205,6 +205,7 @@ describe("primitives controls", () => {
         <SwitchRoot defaultChecked={false} />
         <RadioGroupRoot defaultValue="x">
           <RadioGroupItem value="x">X</RadioGroupItem>
+          <RadioGroupItem value="y">Y</RadioGroupItem>
         </RadioGroupRoot>
         <ToggleRoot
           defaultPressed={false}
@@ -227,6 +228,8 @@ describe("primitives controls", () => {
     expect(checked).toBe(true);
     click('[data-slot="toggle"]');
     expect(pressed).toBe(true);
+    click('[data-slot="switch"]');
+    click('[data-slot="radio-group-item"][data-state="unchecked"]');
     unmount();
   });
 });
@@ -240,18 +243,27 @@ describe("primitives presence via withSetup", () => {
   });
 });
 
-describe("primitive controlled signal props", () => {
-  test("checkbox toggle and toggle-group resolve Signal and getter values", async () => {
+describe("primitive controlled getter props", () => {
+  test("checkbox toggle and toggle-group stay live via getters", async () => {
     const checked = signal(false);
     const pressed = signal(false);
     const group = signal<string | string[]>("");
     const { root, unmount } = mountUi(() => (
       <>
-        <CheckboxRoot checked={checked} />
-        <CheckboxRoot checked={() => true} />
-        <ToggleRoot pressed={pressed} />
-        <ToggleRoot pressed={() => true} />
-        <ToggleGroupRoot value={group}>
+        <CheckboxRoot
+          // @ts-expect-error uncompiled live getter
+          checked={() => checked.value}
+        />
+        <CheckboxRoot checked={true} />
+        <ToggleRoot
+          // @ts-expect-error uncompiled live getter
+          pressed={() => pressed.value}
+        />
+        <ToggleRoot pressed={true} />
+        <ToggleGroupRoot
+          // @ts-expect-error uncompiled live getter
+          value={() => group.value}
+        >
           <ToggleGroupItem value="a">A</ToggleGroupItem>
           <ToggleGroupItem value="b">B</ToggleGroupItem>
         </ToggleGroupRoot>
@@ -317,12 +329,13 @@ describe("primitive controlled signal props", () => {
       <>
         <CheckboxRoot
           checked={false}
-          indeterminate={mixed}
+          // @ts-expect-error uncompiled live getter
+          indeterminate={() => mixed.value}
           onCheckedChange={(value) => {
             nextValue = value;
           }}
         />
-        <CheckboxRoot checked={false} indeterminate={() => true} />
+        <CheckboxRoot checked={false} indeterminate={true} />
         <CheckboxRoot checked={false} indeterminate={false} disabled />
       </>
     ));
@@ -336,6 +349,89 @@ describe("primitive controlled signal props", () => {
     await Promise.resolve();
     await new Promise((r) => setTimeout(r, 0));
     boxes[2]?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    unmount();
+  });
+});
+
+describe("controlled control roots", () => {
+  test("tabs switch radio accordion and single toggle-group stay live", () => {
+    const tab = signal("a");
+    const plan = signal("x");
+    const enabled = signal(false);
+    const openItem = signal("1");
+    const align = signal("a");
+    const { click, root, unmount } = mountUi(() => (
+      <>
+        <TabsRoot
+          // @ts-expect-error uncompiled live getter
+          value={() => tab.value}
+          onValueChange={(v) => {
+            tab.value = v;
+          }}
+        >
+          <TabsTrigger value="a">A</TabsTrigger>
+          <TabsTrigger value="b">B</TabsTrigger>
+        </TabsRoot>
+        <SwitchRoot
+          // @ts-expect-error uncompiled live getter
+          checked={() => enabled.value}
+          onCheckedChange={(v) => {
+            enabled.value = v;
+          }}
+        />
+        <SwitchRoot checked={false} disabled />
+        <RadioGroupRoot
+          // @ts-expect-error uncompiled live getter
+          value={() => plan.value}
+          onValueChange={(v) => {
+            plan.value = v;
+          }}
+        >
+          <RadioGroupItem value="x">X</RadioGroupItem>
+          <RadioGroupItem value="y">Y</RadioGroupItem>
+        </RadioGroupRoot>
+        <AccordionRoot
+          // @ts-expect-error uncompiled live getter
+          value={() => openItem.value}
+          onValueChange={(v) => {
+            if (typeof v === "string") openItem.value = v;
+          }}
+        >
+          <AccordionItem value="1">
+            <AccordionTrigger>One</AccordionTrigger>
+          </AccordionItem>
+        </AccordionRoot>
+        <ToggleGroupRoot
+          type="single"
+          // @ts-expect-error uncompiled live getter
+          value={() => align.value}
+          onValueChange={(v) => {
+            if (typeof v === "string") align.value = v;
+          }}
+        >
+          <ToggleGroupItem value="a">A</ToggleGroupItem>
+          <ToggleGroupItem value="b">B</ToggleGroupItem>
+          <ToggleGroupItem value="c" disabled>
+            C
+          </ToggleGroupItem>
+        </ToggleGroupRoot>
+        <ToggleGroupRoot value="" />
+      </>
+    ));
+    click('[data-slot="tabs-trigger"][data-state="inactive"]');
+    expect(tab.value).toBe("b");
+    click('[data-slot="switch"]');
+    expect(enabled.value).toBe(true);
+    root
+      .querySelectorAll('[data-slot="switch"]')[1]
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    click('[data-slot="radio-group-item"][data-state="unchecked"]');
+    expect(plan.value).toBe("y");
+    click('[data-slot="toggle-group-item"][data-state="off"]');
+    expect(align.value).toBe("b");
+    root
+      .querySelector('[data-slot="toggle-group-item"][disabled]')
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     unmount();
   });
 });

@@ -3,25 +3,15 @@ import { Portal as SinwanPortal, Show } from "sinwan/component";
 import { signal, type Signal } from "sinwan/reactivity";
 
 export type PresenceProps = {
-  present: boolean | Signal<boolean> | (() => boolean);
+  present: boolean;
   children?: SinwanNode;
 };
 
-function readBool(
-  value: boolean | Signal<boolean> | (() => boolean) | undefined,
-): boolean {
-  if (typeof value === "function") return value();
-  if (value && typeof value === "object" && "value" in value) {
-    return (value as Signal<boolean>).value;
-  }
-  return Boolean(value);
-}
-
 /** Conditionally render children while present is true. */
-export const Presence = cc<PresenceProps>(({ present, children }) => {
+export const Presence = cc<PresenceProps>((props) => {
   return (
-    <Show when={() => readBool(present)} fallback={null}>
-      {children}
+    <Show when={() => Boolean(props.present)} fallback={null}>
+      {props.children}
     </Show>
   );
 });
@@ -44,45 +34,37 @@ export const UiPortal = cc<UiPortalProps>(({ children, container }) => {
   );
 });
 
+function readOptionValue<T>(value: unknown): T {
+  if (typeof value === "function" && value.length === 0) {
+    return (value as () => T)();
+  }
+  return value as T;
+}
+
 export function useControllableState<T>(options: {
-  value?: T | Signal<T> | (() => T);
+  value?: T | (() => T);
   defaultValue: T;
   onChange?: (value: T) => void;
 }): [Signal<T>, (value: T | ((prev: T) => T)) => void] {
-  const isControlled =
-    options.value !== undefined &&
-    !(typeof options.value === "function" && options.defaultValue !== undefined
-      ? false
-      : false);
-
-  const readExternal = (): T | undefined => {
-    const v = options.value;
-    if (v === undefined) return undefined;
-    if (typeof v === "function") return (v as () => T)();
-    if (typeof v === "object" && v !== null && "value" in v) {
-      return (v as Signal<T>).value;
-    }
-    return v as T;
-  };
-
-  const external = readExternal();
-  const state = signal<T>(
-    external !== undefined ? external : options.defaultValue,
-  );
+  const isControlled = "value" in options;
+  const read = (): T =>
+    isControlled ? readOptionValue<T>(options.value) : options.defaultValue;
+  const state = signal<T>(isControlled ? read() : options.defaultValue);
 
   const setState = (value: T | ((prev: T) => T)) => {
+    const current = isControlled ? read() : state.value;
     const next =
       typeof value === "function"
-        ? (value as (prev: T) => T)(state.value)
+        ? (value as (prev: T) => T)(current)
         : value;
-    state.value = next;
+    if (!isControlled) state.value = next;
     options.onChange?.(next);
   };
 
-  // Sync from controlled value when provided as signal/getter on mount ticks
   onMounted(() => {
     const sync = () => {
-      const v = readExternal();
+      if (!isControlled) return;
+      const v = read();
       if (v !== undefined && v !== state.value) state.value = v;
     };
     sync();
@@ -90,7 +72,6 @@ export function useControllableState<T>(options: {
     onUnmounted(() => window.clearInterval(id));
   });
 
-  void isControlled;
   return [state, setState];
 }
 

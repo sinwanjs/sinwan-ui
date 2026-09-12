@@ -4,13 +4,14 @@ import { Check, ChevronDown, ChevronUp } from "lucide";
 
 import { Icon } from "../../icons";
 import { cn } from "../../lib/utils";
-import { Presence, UiPortal, useAnchorPosition } from "../../primitives";
+import { createLiveState, type Live } from "../../lib/live-state";
+import { UiPortal, useAnchorPosition } from "../../primitives";
 import { isDismissExemptPointerTarget } from "../../primitives/dismiss";
 
 type SelectApi = {
-  open: Signal<boolean>;
+  open: Live<boolean>;
   setOpen: (value: boolean) => void;
-  value: Signal<string>;
+  value: Live<string>;
   setValue: (value: string, label?: string) => void;
   label: Signal<string>;
   placeholder: string;
@@ -31,46 +32,41 @@ type SelectProps = {
   placeholder?: string;
 };
 
-const Select = cc<SelectProps>(
-  ({
-    children,
-    value: valueProp,
-    defaultValue = "",
-    onValueChange,
-    open: openProp,
-    defaultOpen = false,
-    onOpenChange,
-    placeholder = "",
-  }) => {
-    const open = signal(openProp ?? defaultOpen);
-    const value = signal(valueProp ?? defaultValue);
-    const label = signal("");
-    if (openProp !== undefined) open.value = openProp;
-    if (valueProp !== undefined) value.value = valueProp;
+const Select = cc<SelectProps>((props) => {
+  const { state: open, set: setOpenLocal } = createLiveState(
+    "open" in props,
+    props.defaultOpen ?? false,
+    () => Boolean(props.open),
+  );
+  const { state: value, set: setValueLocal } = createLiveState(
+    "value" in props,
+    props.defaultValue ?? "",
+    () => props.value ?? "",
+  );
+  const label = signal("");
 
-    provide(SelectKey, {
-      open,
-      setOpen: (v: boolean) => {
-        open.value = v;
-        onOpenChange?.(v);
-      },
-      value,
-      setValue: (v: string, text?: string) => {
-        value.value = v;
-        if (text !== undefined) label.value = text;
-        onValueChange?.(v);
-        open.value = false;
-        onOpenChange?.(false);
-      },
-      label,
-      placeholder,
-      triggerEl: signal<HTMLElement | null>(null),
-      contentEl: signal<HTMLElement | null>(null),
-    });
+  provide(SelectKey, {
+    open,
+    setOpen: (v: boolean) => {
+      setOpenLocal(v);
+      props.onOpenChange?.(v);
+    },
+    value,
+    setValue: (v: string, text?: string) => {
+      setValueLocal(v);
+      if (text !== undefined) label.value = text;
+      props.onValueChange?.(v);
+      setOpenLocal(false);
+      props.onOpenChange?.(false);
+    },
+    label,
+    placeholder: props.placeholder ?? "",
+    triggerEl: signal<HTMLElement | null>(null),
+    contentEl: signal<HTMLElement | null>(null),
+  });
 
-    return <>{children}</>;
-  },
-);
+  return <>{props.children}</>;
+});
 
 type SelectGroupProps = {
   children?: SinwanNode;
@@ -217,7 +213,7 @@ function SelectContent({
   });
 
   return (
-    <Presence present={present}>
+    <Show when={() => present.value} fallback={null}>
       <UiPortal>
         <div
           data-slot="select-content"
@@ -240,7 +236,7 @@ function SelectContent({
           <SelectScrollDownButton />
         </div>
       </UiPortal>
-    </Presence>
+    </Show>
   );
 }
 

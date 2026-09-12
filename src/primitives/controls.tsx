@@ -1,17 +1,7 @@
 import { cc, inject, provide, type InjectionKey, type SinwanNode } from "sinwan/component";
 import { For, Show } from "sinwan/component";
-import { resolve, signal, type Signal } from "sinwan/reactivity";
-import { createReactiveState } from "../lib/reactive-state";
+import { createLiveState, type Live } from "../lib/live-state";
 import { Slot } from "../lib/slot";
-import type { ReactiveProp } from "../lib/types";
-
-function sameStringList(a: string[], b: string[]): boolean {
-  if (a.length !== b.length) return false;
-  for (let i = 0; i < a.length; i++) {
-    if (a[i] !== b[i]) return false;
-  }
-  return true;
-}
 
 function toValueList(v: string | string[] | undefined): string[] {
   if (v == null) return [];
@@ -21,7 +11,7 @@ function toValueList(v: string | string[] | undefined): string[] {
 // ─── Tabs ───────────────────────────────────────────────────
 
 export const TabsKey: InjectionKey<{
-  value: Signal<string>;
+  value: Live<string>;
   setValue: (v: string) => void;
 }> = Symbol("sinwan-ui.tabs");
 
@@ -32,32 +22,28 @@ export const TabsRoot = cc<{
   onValueChange?: (v: string) => void;
   class?: string;
   orientation?: "horizontal" | "vertical";
-}>(({
-  children,
-  value: valueProp,
-  defaultValue = "",
-  onValueChange,
-  class: className,
-  orientation = "horizontal",
-}) => {
-  const value = signal(valueProp ?? defaultValue);
-  if (valueProp !== undefined) value.value = valueProp;
+}>((props) => {
+  const { state: value, set } = createLiveState(
+    "value" in props,
+    props.defaultValue ?? "",
+    () => props.value ?? "",
+  );
   provide(TabsKey, {
     value,
     setValue: (v: string) => {
-      value.value = v;
-      onValueChange?.(v);
+      set(v);
+      props.onValueChange?.(v);
     },
   });
   return (
     <div
       data-slot="tabs"
-      data-orientation={orientation}
-      data-horizontal={orientation === "horizontal" ? "" : undefined}
-      data-vertical={orientation === "vertical" ? "" : undefined}
-      class={className}
+      data-orientation={props.orientation ?? "horizontal"}
+      data-horizontal={(props.orientation ?? "horizontal") === "horizontal" ? "" : undefined}
+      data-vertical={props.orientation === "vertical" ? "" : undefined}
+      class={props.class}
     >
-      {children}
+      {props.children}
     </div>
   );
 });
@@ -128,7 +114,7 @@ export const TabsContent = cc<{
 
 export const AccordionKey: InjectionKey<{
   type: "single" | "multiple";
-  value: Signal<string[]>;
+  value: Live<string[]>;
   toggle: (item: string) => void;
 }> = Symbol("sinwan-ui.accordion");
 
@@ -144,21 +130,14 @@ export const AccordionRoot = cc<{
   onValueChange?: (v: string | string[]) => void;
   class?: string;
   collapsible?: boolean;
-}>(({
-  children,
-  type = "single",
-  value: valueProp,
-  defaultValue,
-  onValueChange,
-  class: className,
-  collapsible = true,
-}) => {
-  const toArr = (v: string | string[] | undefined): string[] => {
-    if (v == null) return [];
-    return Array.isArray(v) ? v : [v];
-  };
-  const value = signal(toArr(valueProp ?? defaultValue));
-  if (valueProp !== undefined) value.value = toArr(valueProp);
+}>((props) => {
+  const type = props.type ?? "single";
+  const collapsible = props.collapsible ?? true;
+  const { state: value, set } = createLiveState(
+    "value" in props,
+    toValueList(props.defaultValue),
+    () => toValueList(props.value),
+  );
 
   provide(AccordionKey, {
     type,
@@ -173,14 +152,14 @@ export const AccordionRoot = cc<{
           ? value.value.filter((v) => v !== item)
           : [...value.value, item];
       }
-      value.value = next;
-      onValueChange?.(type === "single" ? (next[0] ?? "") : next);
+      set(next);
+      props.onValueChange?.(type === "single" ? (next[0] ?? "") : next);
     },
   });
 
   return (
-    <div data-slot="accordion" class={className}>
-      {children}
+    <div data-slot="accordion" class={props.class}>
+      {props.children}
     </div>
   );
 });
@@ -242,8 +221,8 @@ export const AccordionContent = cc<{
 // ─── Checkbox / Switch / Radio / Toggle ─────────────────────
 
 export const CheckboxRoot = cc<{
-  checked?: ReactiveProp<boolean>;
-  indeterminate?: ReactiveProp<boolean>;
+  checked?: boolean;
+  indeterminate?: boolean;
   defaultChecked?: boolean;
   onCheckedChange?: (checked: boolean) => void;
   disabled?: boolean;
@@ -253,44 +232,41 @@ export const CheckboxRoot = cc<{
   value?: string;
   "aria-label"?: string;
   children?: SinwanNode;
-}>(({
-  checked: checkedProp,
-  indeterminate: indeterminateProp,
-  defaultChecked = false,
-  onCheckedChange,
-  disabled,
-  class: className,
-  id,
-  name,
-  value,
-  "aria-label": ariaLabel,
-  children,
-}) => {
-  const checked = createReactiveState(checkedProp, defaultChecked);
-  const mixed = createReactiveState(indeterminateProp, false);
+}>((props) => {
+  const { state: checked, set: setChecked } = createLiveState(
+    "checked" in props,
+    props.defaultChecked ?? false,
+    () => Boolean(props.checked),
+  );
+  const { state: mixed, set: setMixed } = createLiveState(
+    "indeterminate" in props,
+    false,
+    () => Boolean(props.indeterminate),
+  );
   return (
     <button
       type="button"
       role="checkbox"
-      id={id}
+      id={props.id}
       data-slot="checkbox"
       data-state={() =>
         mixed.value ? "indeterminate" : checked.value ? "checked" : "unchecked"
       }
       aria-checked={() => (mixed.value ? "mixed" : checked.value)}
-      aria-label={ariaLabel}
-      disabled={disabled}
-      class={className}
-      name={name}
-      value={value}
+      aria-label={props["aria-label"]}
+      disabled={props.disabled}
+      class={props.class}
+      name={props.name}
+      value={props.value}
       onclick={() => {
-        if (disabled) return;
+        if (props.disabled) return;
         const next = mixed.value ? true : !checked.value;
-        checked.value = next;
-        onCheckedChange?.(next);
+        setChecked(next);
+        setMixed(false);
+        props.onCheckedChange?.(next);
       }}
     >
-      {children}
+      {props.children}
     </button>
   );
 });
@@ -304,43 +280,37 @@ export const SwitchRoot = cc<{
   id?: string;
   children?: SinwanNode;
   "data-size"?: string;
-}>(({
-  checked: checkedProp,
-  defaultChecked = false,
-  onCheckedChange,
-  disabled,
-  class: className,
-  id,
-  children,
-  "data-size": dataSize,
-}) => {
-  const checked = signal(checkedProp ?? defaultChecked);
-  if (checkedProp !== undefined) checked.value = checkedProp;
+}>((props) => {
+  const { state: checked, set } = createLiveState(
+    "checked" in props,
+    props.defaultChecked ?? false,
+    () => Boolean(props.checked),
+  );
   return (
     <button
       type="button"
       role="switch"
-      id={id}
+      id={props.id}
       data-slot="switch"
-      data-size={dataSize}
+      data-size={props["data-size"]}
       data-state={() => (checked.value ? "checked" : "unchecked")}
       aria-checked={() => checked.value}
-      disabled={disabled}
-      class={className}
+      disabled={props.disabled}
+      class={props.class}
       onclick={() => {
-        if (disabled) return;
+        if (props.disabled) return;
         const next = !checked.value;
-        checked.value = next;
-        onCheckedChange?.(next);
+        set(next);
+        props.onCheckedChange?.(next);
       }}
     >
-      {children}
+      {props.children}
     </button>
   );
 });
 
 export const RadioGroupKey: InjectionKey<{
-  value: Signal<string>;
+  value: Live<string>;
   setValue: (v: string) => void;
   name?: string;
 }> = Symbol("sinwan-ui.radio-group");
@@ -352,27 +322,23 @@ export const RadioGroupRoot = cc<{
   onValueChange?: (v: string) => void;
   class?: string;
   name?: string;
-}>(({
-  children,
-  value: valueProp,
-  defaultValue = "",
-  onValueChange,
-  class: className,
-  name,
-}) => {
-  const value = signal(valueProp ?? defaultValue);
-  if (valueProp !== undefined) value.value = valueProp;
+}>((props) => {
+  const { state: value, set } = createLiveState(
+    "value" in props,
+    props.defaultValue ?? "",
+    () => props.value ?? "",
+  );
   provide(RadioGroupKey, {
     value,
-    name,
+    name: props.name,
     setValue: (v: string) => {
-      value.value = v;
-      onValueChange?.(v);
+      set(v);
+      props.onValueChange?.(v);
     },
   });
   return (
-    <div role="radiogroup" data-slot="radio-group" class={className}>
-      {children}
+    <div role="radiogroup" data-slot="radio-group" class={props.class}>
+      {props.children}
     </div>
   );
 });
@@ -407,51 +373,48 @@ export const RadioGroupItem = cc<{
 });
 
 export const ToggleRoot = cc<{
-  pressed?: ReactiveProp<boolean>;
+  pressed?: boolean;
   defaultPressed?: boolean;
   onPressedChange?: (pressed: boolean) => void;
   disabled?: boolean;
   class?: string;
   children?: SinwanNode;
-}>(({
-  pressed: pressedProp,
-  defaultPressed = false,
-  onPressedChange,
-  disabled,
-  class: className,
-  children,
-}) => {
-  const pressed = createReactiveState(pressedProp, defaultPressed);
+}>((props) => {
+  const { state: pressed, set } = createLiveState(
+    "pressed" in props,
+    props.defaultPressed ?? false,
+    () => Boolean(props.pressed),
+  );
   return (
     <button
       type="button"
       data-slot="toggle"
       data-state={() => (pressed.value ? "on" : "off")}
       aria-pressed={() => pressed.value}
-      disabled={disabled}
-      class={className}
+      disabled={props.disabled}
+      class={props.class}
       onclick={() => {
-        if (disabled) return;
+        if (props.disabled) return;
         const next = !pressed.value;
-        pressed.value = next;
-        onPressedChange?.(next);
+        set(next);
+        props.onPressedChange?.(next);
       }}
     >
-      {children}
+      {props.children}
     </button>
   );
 });
 
 export const ToggleGroupKey: InjectionKey<{
   type: "single" | "multiple";
-  value: Signal<string[]>;
+  value: Live<string[]>;
   toggle: (v: string) => void;
 }> = Symbol("sinwan-ui.toggle-group");
 
 export const ToggleGroupRoot = cc<{
   children?: SinwanNode;
   type?: "single" | "multiple";
-  value?: ReactiveProp<string | string[]>;
+  value?: string | string[];
   defaultValue?: string | string[];
   onValueChange?: (v: string | string[]) => void;
   class?: string;
@@ -460,23 +423,12 @@ export const ToggleGroupRoot = cc<{
   "data-size"?: string;
   "data-spacing"?: string | number;
   "data-orientation"?: string;
-}>(({
-  children,
-  type = "single",
-  value: valueProp,
-  defaultValue,
-  onValueChange,
-  class: className,
-  style,
-  "data-variant": dataVariant,
-  "data-size": dataSize,
-  "data-spacing": dataSpacing,
-  "data-orientation": dataOrientation,
-}) => {
-  const value = createReactiveState(
-    valueProp === undefined ? undefined : () => toValueList(resolve(valueProp)),
-    toValueList(defaultValue),
-    sameStringList,
+}>((props) => {
+  const type = props.type ?? "single";
+  const { state: value, set } = createLiveState(
+    "value" in props,
+    toValueList(props.defaultValue),
+    () => toValueList(props.value),
   );
   provide(ToggleGroupKey, {
     type,
@@ -490,22 +442,22 @@ export const ToggleGroupRoot = cc<{
           ? value.value.filter((x) => x !== item)
           : [...value.value, item];
       }
-      value.value = next;
-      onValueChange?.(type === "single" ? (next[0] ?? "") : next);
+      set(next);
+      props.onValueChange?.(type === "single" ? (next[0] ?? "") : next);
     },
   });
   return (
     <div
       data-slot="toggle-group"
       role="group"
-      class={className}
-      style={style}
-      data-variant={dataVariant}
-      data-size={dataSize}
-      data-spacing={dataSpacing}
-      data-orientation={dataOrientation}
+      class={props.class}
+      style={props.style}
+      data-variant={props["data-variant"]}
+      data-size={props["data-size"]}
+      data-spacing={props["data-spacing"]}
+      data-orientation={props["data-orientation"]}
     >
-      {children}
+      {props.children}
     </div>
   );
 });

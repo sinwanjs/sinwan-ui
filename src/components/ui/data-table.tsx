@@ -1,8 +1,7 @@
 import { cc, For, onUnmounted, type SinwanNode } from "sinwan/component";
-import { effect, resolve } from "sinwan/reactivity";
+import { effect } from "sinwan/reactivity";
 import { constructTable, type RowData } from "@tanstack/table-core";
 
-import type { ReactiveProp } from "../../lib/types";
 import { cn } from "../../lib/utils";
 import { dataTableFeatures, type DataTableColumnDef } from "./data-table-features";
 import { DataTableFlexRender, useTableRevision } from "./data-table-node";
@@ -13,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 
 export type DataTableProps<TData extends RowData = RowData> = {
   columns: ReadonlyArray<DataTableColumnDef<TData>>;
-  data: ReactiveProp<TData[]>;
+  data: TData[];
   filterColumnId?: string;
   filterPlaceholder?: string;
   getRowId?: (originalRow: TData, index: number) => string;
@@ -27,7 +26,7 @@ export type DataTableProps<TData extends RowData = RowData> = {
 
 type DataTableHostProps = {
   columns: ReadonlyArray<DataTableColumnDef>;
-  data: ReactiveProp<RowData[]>;
+  data: RowData[];
   filterColumnId?: string;
   filterPlaceholder: string;
   getRowId?: (originalRow: RowData, index: number) => string;
@@ -39,9 +38,8 @@ type DataTableHostProps = {
   pageSizes?: readonly number[];
 };
 
-function resolveTableData(data: ReactiveProp<RowData[]>): RowData[] {
-  const resolved: unknown = resolve(data);
-  return Array.isArray(resolved) ? resolved : [];
+function resolveTableData(data: unknown): RowData[] {
+  return Array.isArray(data) ? data : [];
 }
 
 const DataTableHost = cc<DataTableHostProps>((props) => {
@@ -172,7 +170,7 @@ export function DataTable<TData extends RowData>(
   return (
     <DataTableHost
       columns={props.columns as ReadonlyArray<DataTableColumnDef>}
-      data={props.data as ReactiveProp<RowData[]>}
+      data={props.data as RowData[]}
       filterColumnId={props.filterColumnId}
       filterPlaceholder={props.filterPlaceholder ?? "Filter..."}
       getRowId={props.getRowId as DataTableHostProps["getRowId"]}

@@ -1,11 +1,10 @@
-import { cc, inject, provide, type InjectionKey, type SinwanNode } from "sinwan/component";
+import { cc, inject, provide, Show, type InjectionKey, type SinwanNode } from "sinwan/component";
 import { signal, type Signal } from "sinwan/reactivity";
 import { cva } from "class-variance-authority";
 import { ChevronDown } from "lucide";
 
 import { Icon } from "../../icons";
 import { cn } from "../../lib/utils";
-import { Presence } from "../../primitives";
 
 type NavMenuApi = {
   openItem: Signal<string | null>;
@@ -162,7 +161,7 @@ function NavigationMenuContent({
   const item = inject(NavItemKey)!;
   const root = inject(NavMenuKey)!;
   return (
-    <Presence present={() => item.open.value}>
+    <Show when={() => item.open.value} fallback={null}>
       <div
         data-slot="navigation-menu-content"
         data-state={() => (item.open.value ? "open" : "closed")}
@@ -174,7 +173,7 @@ function NavigationMenuContent({
       >
         {children}
       </div>
-    </Presence>
+    </Show>
   );
 }
 
@@ -247,7 +246,7 @@ function NavigationMenuIndicator({
 }: NavigationMenuIndicatorProps) {
   const root = inject(NavMenuKey)!;
   return (
-    <Presence present={() => root.openItem.value !== null}>
+    <Show when={() => root.openItem.value !== null} fallback={null}>
       <div
         data-slot="navigation-menu-indicator"
         data-state="visible"
@@ -258,7 +257,7 @@ function NavigationMenuIndicator({
       >
         <div class="relative top-[60%] h-2 w-2 rotate-45 rounded-tl-sm bg-border shadow-md" />
       </div>
-    </Presence>
+    </Show>
   );
 }
 

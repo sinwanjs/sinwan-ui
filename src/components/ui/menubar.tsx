@@ -4,7 +4,7 @@ import { Check, ChevronRight } from "lucide";
 
 import { Icon } from "../../icons";
 import { cn } from "../../lib/utils";
-import { Presence, UiPortal, useAnchorPosition, type Align } from "../../primitives";
+import { UiPortal, useAnchorPosition, type Align } from "../../primitives";
 import { isDismissExemptPointerTarget } from "../../primitives/dismiss";
 
 type MenubarApi = {
@@ -214,7 +214,7 @@ function MenubarContent({
   });
 
   return (
-    <Presence present={present}>
+    <Show when={() => present.value} fallback={null}>
       <UiPortal>
         <div
           data-slot="menubar-content"
@@ -233,7 +233,7 @@ function MenubarContent({
           {children}
         </div>
       </UiPortal>
-    </Presence>
+    </Show>
   );
 }
 
@@ -485,14 +485,11 @@ function MenubarSubContent({
   children,
 }: MenubarSubContentProps) {
   const api = inject(MenubarSubKey)!;
-  function isOpen() {
-    return api.open.value;
-  }
   function closeSub() {
     api.setOpen(false);
   }
   return (
-    <Presence present={isOpen}>
+    <Show when={() => api.open.value} fallback={null}>
       <div
         data-slot="menubar-sub-content"
         data-open=""
@@ -504,7 +501,7 @@ function MenubarSubContent({
       >
         {children}
       </div>
-    </Presence>
+    </Show>
   );
 }
 

@@ -1,11 +1,13 @@
 import type { SinwanElement, SinwanNode } from "sinwan/component";
-import { resolve } from "sinwan/reactivity";
 import { flattenChildren, isSinwanElement } from "./types";
 
 type AnyProps = Record<string, unknown>;
 
 function classText(value: unknown): string {
-  const resolved = resolve(value);
+  const resolved =
+    typeof value === "function" && value.length === 0
+      ? (value as () => unknown)()
+      : value;
   return typeof resolved === "string" ? resolved : "";
 }
 

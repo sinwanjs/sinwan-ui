@@ -13,16 +13,13 @@ const DataTableSelectAllHost = cc<{ table: DataTableInstance }>(({ table }) => {
   return (
     <Checkbox
       aria-label="Select all"
-      checked={() => {
-        revision.value;
-        return table.getIsAllPageRowsSelected();
-      }}
-      indeterminate={() => {
-        revision.value;
-        return (
-          table.getIsSomePageRowsSelected() && !table.getIsAllPageRowsSelected()
-        );
-      }}
+      // @ts-expect-error live getter — compiler does not wrap this internal host
+      checked={() => (revision.value, table.getIsAllPageRowsSelected())}
+      // @ts-expect-error live getter — compiler does not wrap this internal host
+      indeterminate={() =>
+        (revision.value,
+        table.getIsSomePageRowsSelected() && !table.getIsAllPageRowsSelected())
+      }
       onCheckedChange={(value) => table.toggleAllPageRowsSelected(value)}
     />
   );
@@ -33,10 +30,8 @@ const DataTableSelectRowHost = cc<{ row: DataTableRow }>(({ row }) => {
   return (
     <Checkbox
       aria-label="Select row"
-      checked={() => {
-        revision.value;
-        return row.getIsSelected();
-      }}
+      // @ts-expect-error live getter — compiler does not wrap this internal host
+      checked={() => (revision.value, row.getIsSelected())}
       onCheckedChange={(value) => row.toggleSelected(value)}
     />
   );

@@ -1634,14 +1634,14 @@ describe("coverage-100 — primitives theme icons toast", () => {
     const { unmount } = mountUi(() => {
       const Child = cc(() => {
         const [state, setState] = useControllableState({
-          value: external,
+          value: () => external.value,
           defaultValue: 0,
           onChange: () => {},
         });
         setState(4);
         return (
           <>
-            <Presence present={present}>
+            <Presence present={present.value}>
               <span data-slot="presence-sig">on</span>
             </Presence>
             <UiPortal container={() => document.body}>

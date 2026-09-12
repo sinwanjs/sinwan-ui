@@ -1,4 +1,4 @@
-import type { SinwanNode } from "sinwan/component";
+import { getRawProps, type SinwanNode } from "sinwan/component";
 import { cva, type VariantProps } from "class-variance-authority";
 
 import { cn } from "@/lib/utils";
@@ -18,11 +18,12 @@ type TabsProps = {
   orientation?: "horizontal" | "vertical";
 };
 
-function Tabs({
-  class: className,
-  orientation = "horizontal",
-  ...props
-}: TabsProps) {
+function Tabs(props: TabsProps) {
+  const {
+    class: className,
+    orientation = "horizontal",
+    ...rest
+  } = getRawProps(props);
   return (
     <TabsRoot
       orientation={orientation}
@@ -32,7 +33,7 @@ function Tabs({
         orientation === "vertical" && "flex-row",
         className,
       )}
-      {...props}
+      {...rest}
     />
   );
 }

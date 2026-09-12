@@ -5,7 +5,7 @@ import { Check, ChevronRight } from "lucide";
 import { Icon } from "../../icons";
 import { Slot } from "../../lib/slot";
 import { cn } from "../../lib/utils";
-import { Presence, UiPortal, usePointPosition } from "../../primitives";
+import { UiPortal, usePointPosition } from "../../primitives";
 import { isDismissExemptPointerTarget } from "../../primitives/dismiss";
 
 type ContextMenuApi = {
@@ -138,7 +138,7 @@ function ContextMenuContent({
   });
 
   return (
-    <Presence present={present}>
+    <Show when={() => present.value} fallback={null}>
       <UiPortal>
         <div
           data-slot="context-menu-content"
@@ -157,7 +157,7 @@ function ContextMenuContent({
           {children}
         </div>
       </UiPortal>
-    </Presence>
+    </Show>
   );
 }
 
@@ -451,14 +451,11 @@ function ContextMenuSubContent({
   children,
 }: ContextMenuSubContentProps) {
   const api = inject(ContextSubKey)!;
-  function isOpen() {
-    return api.open.value;
-  }
   function closeSub() {
     api.setOpen(false);
   }
   return (
-    <Presence present={isOpen}>
+    <Show when={() => api.open.value} fallback={null}>
       <div
         data-slot="context-menu-sub-content"
         data-open=""
@@ -470,7 +467,7 @@ function ContextMenuSubContent({
       >
         {children}
       </div>
-    </Presence>
+    </Show>
   );
 }
 

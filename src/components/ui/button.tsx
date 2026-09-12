@@ -1,9 +1,7 @@
 import { cva, type VariantProps } from "class-variance-authority";
-import { cc, type SinwanNode } from "sinwan/component";
-import { resolve } from "sinwan/reactivity";
+import { cc, getRawProps, type SinwanNode } from "sinwan/component";
 
 import { Slot } from "../../lib/slot";
-import type { ReactiveProp } from "../../lib/types";
 import { cn } from "../../lib/utils";
 
 import { Spinner } from "./spinner";
@@ -54,11 +52,11 @@ type ButtonVariant = NonNullable<
 type ButtonSize = NonNullable<VariantProps<typeof buttonVariants>["size"]>;
 
 type ButtonProps = Omit<JSX.IntrinsicElements["button"], "disabled"> & {
-  variant?: ReactiveProp<ButtonVariant>;
-  size?: ReactiveProp<ButtonSize>;
+  variant?: ButtonVariant;
+  size?: ButtonSize;
   asChild?: boolean;
-  isLoading?: ReactiveProp<boolean>;
-  disabled?: ReactiveProp<boolean>;
+  isLoading?: boolean;
+  disabled?: boolean;
   children?: SinwanNode;
 };
 
@@ -69,25 +67,27 @@ const preventClick = (event: Event) => {
   event.stopPropagation();
 };
 
-const Button = cc(function Button({
-  class: className,
-  variant,
-  size,
-  asChild = false,
-  isLoading,
-  disabled,
-  onclick,
-  children,
-  ...props
-}: ButtonProps) {
+const Button = cc(function Button(props: ButtonProps) {
+  const {
+    asChild: _asChild,
+    children: _children,
+    class: _className,
+    variant: _variant,
+    size: _size,
+    isLoading: _isLoading,
+    disabled: _disabled,
+    onclick: _onclick,
+    ...rest
+  } = getRawProps(props);
+  const asChild = Boolean(props.asChild);
   const handleClick: NonNullable<
     JSX.IntrinsicElements["button"]["onclick"]
   > = (event) => {
-    if (resolve(disabled) || resolve(isLoading)) {
+    if (props.disabled || props.isLoading) {
       preventClick(event);
       return;
     }
-    onclick?.(event);
+    props.onclick?.(event);
   };
 
   // `disabled` only exists on form controls: with `asChild` the child is
@@ -97,25 +97,25 @@ const Button = cc(function Button({
     return (
       <Slot
         data-slot="button"
-        data-variant={() => resolve(variant)}
-        data-size={() => resolve(size)}
+        data-variant={() => props.variant}
+        data-size={() => props.size}
         class={() =>
           cn(
             buttonVariants({
-              variant: resolve(variant) ?? "default",
-              size: resolve(size) ?? "default",
-              className: resolve(className),
+              variant: props.variant ?? "default",
+              size: props.size ?? "default",
+              className: props.class,
             }),
           )
         }
         aria-disabled={() =>
-          resolve(disabled) || resolve(isLoading) ? true : undefined
+          props.disabled || props.isLoading ? true : undefined
         }
-        aria-busy={() => (resolve(isLoading) ? true : undefined)}
+        aria-busy={() => (props.isLoading ? true : undefined)}
         onclick={handleClick}
-        {...props}
+        {...rest}
       >
-        {children}
+        {props.children}
       </Slot>
     );
   }
@@ -123,33 +123,33 @@ const Button = cc(function Button({
   return (
     <button
       data-slot="button"
-      data-variant={() => resolve(variant)}
-      data-size={() => resolve(size)}
+      data-variant={() => props.variant}
+      data-size={() => props.size}
       class={() =>
         cn(
           buttonVariants({
-            variant: resolve(variant) ?? "default",
-            size: resolve(size) ?? "default",
-            className: resolve(className),
+            variant: props.variant ?? "default",
+            size: props.size ?? "default",
+            className: props.class,
           }),
         )
       }
       aria-disabled={() =>
-        resolve(disabled) || resolve(isLoading) ? true : undefined
+        props.disabled || props.isLoading ? true : undefined
       }
-      aria-busy={() => (resolve(isLoading) ? true : undefined)}
+      aria-busy={() => (props.isLoading ? true : undefined)}
       onclick={handleClick}
-      {...props}
-      disabled={() => Boolean(resolve(disabled) || resolve(isLoading))}
+      {...rest}
+      disabled={() => Boolean(props.disabled || props.isLoading)}
     >
       {() =>
-        resolve(isLoading) ? (
+        props.isLoading ? (
           <>
             <Spinner />
-            {children}
+            {props.children}
           </>
         ) : (
-          children
+          props.children
         )
       }
     </button>

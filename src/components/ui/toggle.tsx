@@ -1,7 +1,6 @@
-import type { SinwanNode } from "sinwan/component";
+import { getRawProps, type SinwanNode } from "sinwan/component";
 import { cva, type VariantProps } from "class-variance-authority";
 
-import type { ReactiveProp } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { ToggleRoot } from "@/primitives";
 
@@ -28,7 +27,7 @@ const toggleVariants = cva(
 );
 
 type ToggleProps = {
-  pressed?: ReactiveProp<boolean>;
+  pressed?: boolean;
   defaultPressed?: boolean;
   onPressedChange?: (pressed: boolean) => void;
   disabled?: boolean;
@@ -38,16 +37,17 @@ type ToggleProps = {
   size?: VariantProps<typeof toggleVariants>["size"];
 };
 
-function Toggle({
-  class: className,
-  variant = "default",
-  size = "default",
-  ...props
-}: ToggleProps) {
+function Toggle(props: ToggleProps) {
+  const {
+    class: className,
+    variant = "default",
+    size = "default",
+    ...rest
+  } = getRawProps(props);
   return (
     <ToggleRoot
       class={cn(toggleVariants({ variant, size, className }))}
-      {...props}
+      {...rest}
     />
   );
 }

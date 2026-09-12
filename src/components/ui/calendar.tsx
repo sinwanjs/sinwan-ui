@@ -1,24 +1,14 @@
-import { cc, onUnmounted } from "sinwan/component";
-import {
-  effect,
-  resolve,
-  signal,
-  type Signal,
-} from "sinwan/reactivity";
+import { cc } from "sinwan/component";
+import { signal } from "sinwan/reactivity";
 import { ChevronLeft, ChevronRight } from "lucide";
 
 import { Icon } from "../../icons";
 import { cn } from "../../lib/utils";
+import { createLiveState } from "../../lib/live-state";
 import { Button } from "./button";
 
-type CalendarDateInput =
-  | Date
-  | undefined
-  | Signal<Date | undefined>
-  | (() => Date | undefined);
-
 export type CalendarProps = {
-  selected?: CalendarDateInput;
+  selected?: Date;
   onSelect?: (date?: Date) => void;
   mode?: "single";
   month?: Date;
@@ -134,168 +124,151 @@ function isDisabled(
   return false;
 }
 
-export const Calendar = cc<CalendarProps>(
-  ({
-    selected: selectedProp,
-    onSelect,
-    mode: _mode = "single",
-    month: monthProp,
-    onMonthChange,
-    class: className,
-    showOutsideDays = true,
-    disabled,
-    locale,
-    buttonVariant = "ghost",
-  }) => {
-    void _mode;
-    const today = startOfDay(new Date());
-    const controlledSelected = selectedProp !== undefined;
-    const selected = signal<Date | undefined>(
-      controlledSelected ? resolve(selectedProp) : undefined,
+export const Calendar = cc<CalendarProps>((props) => {
+  void (props.mode ?? "single");
+  const today = startOfDay(new Date());
+  const { state: selected, set: setSelected } = createLiveState<
+    Date | undefined
+  >("selected" in props, undefined, () => props.selected);
+
+  const initial =
+    props.month ??
+    (selected.value
+      ? new Date(selected.value.getFullYear(), selected.value.getMonth(), 1)
+      : new Date(today.getFullYear(), today.getMonth(), 1));
+  const viewMonth = signal(initial);
+  if (props.month) {
+    viewMonth.value = new Date(
+      props.month.getFullYear(),
+      props.month.getMonth(),
+      1,
     );
-    if (controlledSelected) {
-      const stop = effect(() => {
-        const next = resolve(selectedProp);
-        if (!sameDay(next, selected.value)) {
-          selected.value = next;
-        }
-      });
-      onUnmounted(stop);
-    }
+  }
 
-    const initial =
-      monthProp ??
-      (selected.value
-        ? new Date(selected.value.getFullYear(), selected.value.getMonth(), 1)
-        : new Date(today.getFullYear(), today.getMonth(), 1));
-    const viewMonth = signal(initial);
-    if (monthProp) {
-      viewMonth.value = new Date(monthProp.getFullYear(), monthProp.getMonth(), 1);
-    }
+  const code = localeCode(props.locale);
+  const labels = weekdayLabels(code);
 
-    const code = localeCode(locale);
-    const labels = weekdayLabels(code);
+  const setMonth = (next: Date) => {
+    const normalized = new Date(next.getFullYear(), next.getMonth(), 1);
+    viewMonth.value = normalized;
+    props.onMonthChange?.(normalized);
+  };
 
-    const setMonth = (next: Date) => {
-      const normalized = new Date(next.getFullYear(), next.getMonth(), 1);
-      viewMonth.value = normalized;
-      onMonthChange?.(normalized);
-    };
+  const weeks = () =>
+    buildMonthGrid(viewMonth.value, props.showOutsideDays ?? true);
 
-    const weeks = () => buildMonthGrid(viewMonth.value, showOutsideDays);
-
-    return (
-      <div
-        data-slot="calendar"
-        class={cn(
-          "group/calendar bg-background w-fit p-2 [--cell-radius:var(--radius-md)] [--cell-size:--spacing(7)] in-data-[slot=card-content]:bg-transparent in-data-[slot=popover-content]:bg-transparent",
-          className,
-        )}
-      >
-        <div class="relative flex w-full flex-col gap-4">
-          <div class="absolute inset-x-0 top-0 flex w-full items-center justify-between gap-1">
-            <Button
-              variant={buttonVariant}
-              size="icon"
-              class="size-(--cell-size) p-0 select-none"
-              aria-label="Previous month"
-              onclick={() => {
-                const current = viewMonth.value;
-                setMonth(new Date(current.getFullYear(), current.getMonth() - 1, 1));
-              }}
-            >
-              <Icon icon={ChevronLeft} class="size-4" />
-            </Button>
-            <Button
-              variant={buttonVariant}
-              size="icon"
-              class="size-(--cell-size) p-0 select-none"
-              aria-label="Next month"
-              onclick={() => {
-                const current = viewMonth.value;
-                setMonth(new Date(current.getFullYear(), current.getMonth() + 1, 1));
-              }}
-            >
-              <Icon icon={ChevronRight} class="size-4" />
-            </Button>
-          </div>
-
-          <div class="flex h-(--cell-size) w-full items-center justify-center px-(--cell-size)">
-            <div class="text-sm font-medium select-none">
-              {() =>
-                viewMonth.value.toLocaleDateString(code, {
-                  month: "long",
-                  year: "numeric",
-                })
-              }
-            </div>
-          </div>
-
-          <div class="w-full border-collapse">
-            <div class="flex">
-              {labels.map((label) => (
-                <div class="flex-1 rounded-(--cell-radius) text-center text-[0.8rem] font-normal text-muted-foreground select-none">
-                  {label}
-                </div>
-              ))}
-            </div>
-
-            {() => {
-              const currentSelected = selected.value;
-              return weeks().map((week) => (
-                <div class="mt-2 flex w-full">
-                  {week.map((cell) => {
-                    if (!showOutsideDays && cell.outside) {
-                      return (
-                        <div class="relative aspect-square h-full w-full p-0" />
-                      );
-                    }
-                    const disabledDay = isDisabled(cell.date, disabled);
-                    const isSelected = sameDay(currentSelected, cell.date);
-                    const isToday = sameDay(today, cell.date);
-
-                    return (
-                      <div
-                        class="group/day relative aspect-square h-full w-full rounded-(--cell-radius) p-0 text-center select-none"
-                        data-outside={cell.outside ? "" : undefined}
-                      >
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          disabled={disabledDay}
-                          data-day={cell.date.toLocaleDateString(code)}
-                          data-selected-single={isSelected ? "true" : undefined}
-                          data-today={isToday ? "" : undefined}
-                          class={cn(
-                            "relative isolate z-10 flex aspect-square size-auto w-full min-w-(--cell-size) flex-col gap-1 border-0 leading-none font-normal data-[selected-single=true]:bg-primary data-[selected-single=true]:text-primary-foreground",
-                            cell.outside && "text-muted-foreground",
-                            isToday &&
-                              !isSelected &&
-                              "rounded-(--cell-radius) bg-muted text-foreground",
-                            disabledDay && "opacity-50",
-                          )}
-                          onclick={() => {
-                            if (disabledDay) return;
-                            const next = isSelected
-                              ? undefined
-                              : startOfDay(cell.date);
-                            selected.value = next;
-                            onSelect?.(next);
-                          }}
-                        >
-                          {cell.date.getDate()}
-                        </Button>
-                      </div>
-                    );
-                  })}
-                </div>
-              ));
+  return (
+    <div
+      data-slot="calendar"
+      class={cn(
+        "group/calendar bg-background w-fit p-2 [--cell-radius:var(--radius-md)] [--cell-size:--spacing(7)] in-data-[slot=card-content]:bg-transparent in-data-[slot=popover-content]:bg-transparent",
+        props.class,
+      )}
+    >
+      <div class="relative flex w-full flex-col gap-4">
+        <div class="absolute inset-x-0 top-0 flex w-full items-center justify-between gap-1">
+          <Button
+            variant={props.buttonVariant ?? "ghost"}
+            size="icon"
+            class="size-(--cell-size) p-0 select-none"
+            aria-label="Previous month"
+            onclick={() => {
+              const current = viewMonth.value;
+              setMonth(new Date(current.getFullYear(), current.getMonth() - 1, 1));
             }}
+          >
+            <Icon icon={ChevronLeft} class="size-4" />
+          </Button>
+          <Button
+            variant={props.buttonVariant ?? "ghost"}
+            size="icon"
+            class="size-(--cell-size) p-0 select-none"
+            aria-label="Next month"
+            onclick={() => {
+              const current = viewMonth.value;
+              setMonth(new Date(current.getFullYear(), current.getMonth() + 1, 1));
+            }}
+          >
+            <Icon icon={ChevronRight} class="size-4" />
+          </Button>
+        </div>
+
+        <div class="flex h-(--cell-size) w-full items-center justify-center px-(--cell-size)">
+          <div class="text-sm font-medium select-none">
+            {() =>
+              viewMonth.value.toLocaleDateString(code, {
+                month: "long",
+                year: "numeric",
+              })
+            }
           </div>
         </div>
+
+        <div class="w-full border-collapse">
+          <div class="flex">
+            {labels.map((label) => (
+              <div class="flex-1 rounded-(--cell-radius) text-center text-[0.8rem] font-normal text-muted-foreground select-none">
+                {label}
+              </div>
+            ))}
+          </div>
+
+          {() => {
+            const currentSelected = selected.value;
+            const showOutsideDays = props.showOutsideDays ?? true;
+            return weeks().map((week) => (
+              <div class="mt-2 flex w-full">
+                {week.map((cell) => {
+                  if (!showOutsideDays && cell.outside) {
+                    return (
+                      <div class="relative aspect-square h-full w-full p-0" />
+                    );
+                  }
+                  const disabledDay = isDisabled(cell.date, props.disabled);
+                  const isSelected = sameDay(currentSelected, cell.date);
+                  const isToday = sameDay(today, cell.date);
+
+                  return (
+                    <div
+                      class="group/day relative aspect-square h-full w-full rounded-(--cell-radius) p-0 text-center select-none"
+                      data-outside={cell.outside ? "" : undefined}
+                    >
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        disabled={disabledDay}
+                        data-day={cell.date.toLocaleDateString(code)}
+                        data-selected-single={isSelected ? "true" : undefined}
+                        data-today={isToday ? "" : undefined}
+                        class={cn(
+                          "relative isolate z-10 flex aspect-square size-auto w-full min-w-(--cell-size) flex-col gap-1 border-0 leading-none font-normal data-[selected-single=true]:bg-primary data-[selected-single=true]:text-primary-foreground",
+                          cell.outside && "text-muted-foreground",
+                          isToday &&
+                            !isSelected &&
+                            "rounded-(--cell-radius) bg-muted text-foreground",
+                          disabledDay && "opacity-50",
+                        )}
+                        onclick={() => {
+                          if (disabledDay) return;
+                          const next = isSelected
+                            ? undefined
+                            : startOfDay(cell.date);
+                          setSelected(next);
+                          props.onSelect?.(next);
+                        }}
+                      >
+                        {cell.date.getDate()}
+                      </Button>
+                    </div>
+                  );
+                })}
+              </div>
+            ));
+          }}
+        </div>
       </div>
-    );
-  },
-);
+    </div>
+  );
+});
 
 export type { DayCell };

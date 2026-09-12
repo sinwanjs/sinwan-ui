@@ -1,4 +1,4 @@
-import { cc, inject, provide, Show, type InjectionKey, type SinwanNode } from "sinwan/component";
+import { cc, getRawProps, inject, provide, Show, type InjectionKey, type SinwanNode } from "sinwan/component";
 import { signal, type Signal } from "sinwan/reactivity";
 import { Check, Search } from "lucide";
 
@@ -51,18 +51,17 @@ type CommandDialogProps = {
   showCloseButton?: boolean;
 };
 
-function CommandDialog({
-  title = "Command Palette",
-  description = "Search for a command to run...",
-  children,
-  class: className,
-  showCloseButton = false,
-  open,
-  defaultOpen,
-  onOpenChange,
-}: CommandDialogProps) {
+function CommandDialog(props: CommandDialogProps) {
+  const {
+    title = "Command Palette",
+    description = "Search for a command to run...",
+    children,
+    class: className,
+    showCloseButton = false,
+    ...rest
+  } = getRawProps(props);
   return (
-    <Dialog open={open} defaultOpen={defaultOpen} onOpenChange={onOpenChange}>
+    <Dialog {...rest}>
       <DialogHeader class="sr-only">
         <DialogTitle>{title}</DialogTitle>
         <DialogDescription>{description}</DialogDescription>

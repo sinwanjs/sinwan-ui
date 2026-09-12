@@ -1,5 +1,4 @@
 import type { SinwanNode } from "sinwan/component";
-
 import {
   CollapsibleContent as CollapsibleContentPrimitive,
   CollapsibleRoot,

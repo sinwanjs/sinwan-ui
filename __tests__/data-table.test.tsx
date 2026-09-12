@@ -168,7 +168,8 @@ describe("DataTable", () => {
     const { root, unmount } = mountUi(() => (
       <DataTable
         columns={columns}
-        data={rows}
+        // @ts-expect-error uncompiled live getter
+        data={() => rows.value}
         filterColumnId="email"
         filterPlaceholder="Filter emails..."
         getRowId={(row) => row.id}
@@ -208,7 +209,7 @@ describe("DataTable", () => {
     const invalid = mountUi(() => (
       <DataTable
         columns={columns}
-        data={() => 1 as unknown as Payment[]}
+        data={1 as unknown as Payment[]}
         hideToolbar
         hidePagination
       />

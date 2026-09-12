@@ -1,7 +1,4 @@
 import type { SinwanElement, SinwanNode } from "sinwan/component";
-import type { Signal } from "sinwan/reactivity";
-
-export type ReactiveProp<T> = T | Signal<T> | (() => T);
 
 export type DivProps = JSX.IntrinsicElements["div"];
 export type ButtonHTMLProps = JSX.IntrinsicElements["button"];

@@ -1,18 +1,13 @@
-import { cc, onUnmounted } from "sinwan/component";
-import { effect, resolve, signal, type Signal } from "sinwan/reactivity";
-
+import { cc } from "sinwan/component";
 import { cn } from "@/lib/utils";
+import { createLiveState } from "../../lib/live-state";
 
 type SliderValue = number | number[];
-type SliderValueInput =
-  | SliderValue
-  | Signal<SliderValue>
-  | (() => SliderValue);
 
 type SliderProps = {
   class?: string;
   defaultValue?: SliderValue;
-  value?: SliderValueInput;
+  value?: SliderValue;
   min?: number;
   max?: number;
   step?: number;
@@ -62,118 +57,95 @@ function snapValue(
   return Math.min(max, Math.max(min, rounded));
 }
 
-const Slider = cc<SliderProps>(
-  ({
-    class: className,
-    defaultValue,
-    value: valueProp,
-    min = 0,
-    max = 100,
-    step = 1,
-    disabled,
-    orientation = "horizontal",
-    onValueChange,
-    id,
-    name,
-  }) => {
-    const controlled = valueProp !== undefined;
-    const values = signal(
-      toValues(
-        controlled ? resolve(valueProp) : undefined,
-        defaultValue,
-        min,
-      ),
-    );
+const Slider = cc<SliderProps>((props) => {
+  const min = props.min ?? 0;
+  const max = props.max ?? 100;
+  const step = props.step ?? 1;
+  const orientation = props.orientation ?? "horizontal";
+  const { state: values, set } = createLiveState(
+    "value" in props,
+    toValues(undefined, props.defaultValue, min),
+    () => toValues(props.value, undefined, min),
+  );
 
-    if (controlled) {
-      const stop = effect(() => {
-        const next = toValues(resolve(valueProp), undefined, min);
-        if (!sameValues(next, values.value)) {
-          values.value = next;
-        }
-      });
-      onUnmounted(stop);
+  const primary = () => values.value[0] ?? min;
+  const percent = () => {
+    const span = max - min || 1;
+    return ((primary() - min) / span) * 100;
+  };
+
+  const commit = (next: number) => {
+    const clamped = snapValue(next, min, max, step);
+    if (!sameValues([clamped], values.value)) {
+      set([clamped]);
     }
+    props.onValueChange?.([clamped]);
+  };
 
-    const primary = () => values.value[0] ?? min;
-    const percent = () => {
-      const span = max - min || 1;
-      return ((primary() - min) / span) * 100;
-    };
-
-    const commit = (next: number) => {
-      const clamped = snapValue(next, min, max, step);
-      if (!sameValues([clamped], values.value)) {
-        values.value = [clamped];
-      }
-      onValueChange?.([clamped]);
-    };
-
-    return (
+  return (
+    <div
+      data-slot="slider"
+      data-orientation={orientation}
+      data-disabled={props.disabled ? "" : undefined}
+      class={cn(
+        "relative flex w-full touch-none items-center select-none data-disabled:opacity-50 data-vertical:h-full data-vertical:min-h-40 data-vertical:w-auto data-vertical:flex-col",
+        orientation === "vertical" && "h-full min-h-40 w-auto flex-col",
+        props.disabled && "opacity-50",
+        props.class,
+      )}
+    >
       <div
-        data-slot="slider"
-        data-orientation={orientation}
-        data-disabled={disabled ? "" : undefined}
+        data-slot="slider-track"
         class={cn(
-          "relative flex w-full touch-none items-center select-none data-disabled:opacity-50 data-vertical:h-full data-vertical:min-h-40 data-vertical:w-auto data-vertical:flex-col",
-          orientation === "vertical" && "h-full min-h-40 w-auto flex-col",
-          disabled && "opacity-50",
-          className,
+          "relative grow overflow-hidden rounded-full bg-muted",
+          orientation === "vertical" ? "h-full w-1" : "h-1 w-full",
         )}
       >
         <div
-          data-slot="slider-track"
+          data-slot="slider-range"
           class={cn(
-            "relative grow overflow-hidden rounded-full bg-muted",
-            orientation === "vertical" ? "h-full w-1" : "h-1 w-full",
+            "absolute bg-primary select-none",
+            orientation === "vertical" ? "w-full bottom-0" : "h-full left-0",
           )}
-        >
-          <div
-            data-slot="slider-range"
-            class={cn(
-              "absolute bg-primary select-none",
-              orientation === "vertical" ? "w-full bottom-0" : "h-full left-0",
-            )}
-            style={() =>
-              orientation === "vertical"
-                ? `height: ${percent()}%`
-                : `width: ${percent()}%`
-            }
-          />
-        </div>
-        <input
-          type="range"
-          data-slot="slider-input"
-          id={id}
-          name={name}
-          min={String(min)}
-          max={String(max)}
-          step={String(step)}
-          disabled={disabled}
-          aria-orientation={orientation}
-          value={() => String(primary())}
-          class={cn(
-            "absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0 disabled:pointer-events-none disabled:cursor-not-allowed",
-            orientation === "vertical" && "[writing-mode:vertical-lr]",
-          )}
-          oninput={(event) => {
-            const target = event.currentTarget as HTMLInputElement;
-            commit(Number(target.value));
-          }}
-        />
-        <span
-          data-slot="slider-thumb"
-          aria-hidden="true"
-          class="pointer-events-none absolute z-0 size-3 shrink-0 rounded-full border border-ring bg-white ring-ring/50 transition-[color,box-shadow] select-none after:absolute after:-inset-2"
           style={() =>
             orientation === "vertical"
-              ? `left: 50%; bottom: ${percent()}%; transform: translate(-50%, 50%)`
-              : `top: 50%; left: ${percent()}%; transform: translate(-50%, -50%)`
+              ? `height: ${percent()}%`
+              : `width: ${percent()}%`
           }
         />
       </div>
-    );
-  },
-);
+      <input
+        type="range"
+        data-slot="slider-input"
+        id={props.id}
+        name={props.name}
+        min={String(min)}
+        max={String(max)}
+        step={String(step)}
+        disabled={props.disabled}
+        aria-orientation={orientation}
+        value={() => String(primary())}
+        class={cn(
+          "absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0 disabled:pointer-events-none disabled:cursor-not-allowed",
+          orientation === "vertical" && "[writing-mode:vertical-lr]",
+        )}
+        oninput={(event) => {
+          const target = event.currentTarget as HTMLInputElement;
+          commit(Number(target.value));
+        }}
+      />
+      <span
+        data-slot="slider-thumb"
+        aria-hidden="true"
+        class="pointer-events-none absolute z-0 size-3 shrink-0 rounded-full border border-ring bg-white ring-ring/50 transition-[color,box-shadow] select-none after:absolute after:-inset-2"
+        style={() =>
+          orientation === "vertical"
+            ? `left: 50%; bottom: ${percent()}%; transform: translate(-50%, 50%)`
+            : `top: 50%; left: ${percent()}%; transform: translate(-50%, -50%)`
+        }
+      />
+    </div>
+  );
+});
 
 export { Slider };

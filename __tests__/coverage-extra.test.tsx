@@ -357,7 +357,7 @@ describe("coverage extras — controllable state and presence", () => {
     withSetup(() => {
       const external = signal(1);
       const [state, setState] = useControllableState({
-        value: external,
+        value: () => external.value,
         defaultValue: 0,
         onChange: () => {},
       });
@@ -374,8 +374,8 @@ describe("coverage extras — controllable state and presence", () => {
     });
 
     withSetup(() => {
-      Presence({ present: signal(true), children: "sig" });
-      Presence({ present: signal(false), children: "hid" });
+      Presence({ present: true, children: "sig" });
+      Presence({ present: false, children: "hid" });
     });
   });
 });
@@ -852,8 +852,8 @@ describe("coverage extras — primitives deep", () => {
     colChild.unmount();
 
     withSetup(() => {
-      Presence({ present: () => true, children: "x" });
-      Presence({ present: () => false, children: "y" });
+      Presence({ present: true, children: "x" });
+      Presence({ present: false, children: "y" });
     });
 
     const root = document.createElement("div");
@@ -1096,7 +1096,8 @@ describe("coverage extras — nav hover scroller chips", () => {
     const { root, unmount } = mountUi(() => (
       <div>
         <Slider
-          value={volume}
+          // @ts-expect-error uncompiled live getter
+          value={() => volume.value}
           step={1}
           onValueChange={(next) => {
             volume.value = next;

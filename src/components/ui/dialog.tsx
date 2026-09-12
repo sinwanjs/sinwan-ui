@@ -2,7 +2,6 @@ import type { SinwanNode } from "sinwan/component";
 import { X } from "lucide";
 
 import { Icon } from "../../icons";
-import type { ReactiveProp } from "../../lib/types";
 import { cn } from "../../lib/utils";
 import {
   DialogClose as DialogClosePrimitive,
@@ -16,7 +15,7 @@ import { Button } from "./button";
 
 type DialogProps = {
   children?: SinwanNode;
-  open?: ReactiveProp<boolean>;
+  open?: boolean;
   defaultOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
 };
