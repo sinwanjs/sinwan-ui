@@ -7,7 +7,7 @@ function Table({
   return (
     <div
       data-slot="table-container"
-      class="relative w-full overflow-x-auto"
+      class="relative w-full min-w-0 overflow-x-auto"
     >
       <table
         data-slot="table"
@@ -84,7 +84,7 @@ function TableHead({
     <th
       data-slot="table-head"
       class={cn(
-        "h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&:has([role=checkbox])]:pr-0",
+        "h-10 px-2 text-start align-middle font-medium whitespace-nowrap text-foreground [&:has([role=checkbox])]:pe-0",
         className,
       )}
       {...props}
@@ -100,7 +100,7 @@ function TableCell({
     <td
       data-slot="table-cell"
       class={cn(
-        "p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0",
+        "p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pe-0",
         className,
       )}
       {...props}

@@ -1,6 +1,6 @@
 import { cc, inject, onMounted, onUnmounted, provide, Show, type InjectionKey, type SinwanNode } from "sinwan/component";
 import { signal, type Signal } from "sinwan/reactivity";
-import { Check, ChevronDown, ChevronUp } from "lucide";
+import { Check, ChevronDown, ChevronUp, type IconNode } from "lucide";
 
 import { Icon } from "../../icons";
 import { cn } from "../../lib/utils";
@@ -17,7 +17,88 @@ type SelectApi = {
   placeholder: string;
   triggerEl: Signal<HTMLElement | null>;
   contentEl: Signal<HTMLElement | null>;
+  viewportEl: Signal<HTMLElement | null>;
+  canScrollUp: Signal<boolean>;
+  canScrollDown: Signal<boolean>;
 };
+
+const SELECT_SCROLL_PX = 8;
+
+let selectAutoScrollFrame = 0;
+let selectAutoScrollApi: SelectApi | null = null;
+let selectAutoScrollDirection: 1 | -1 = 1;
+
+function selectContentMinWidth(anchor: DOMRect): Record<string, string> {
+  return { minWidth: `${anchor.width}px` };
+}
+
+function stopSelectAutoScroll(): void {
+  if (selectAutoScrollFrame === 0) return;
+  cancelAnimationFrame(selectAutoScrollFrame);
+  selectAutoScrollFrame = 0;
+}
+
+function stepSelectAutoScroll(): void {
+  const api = selectAutoScrollApi;
+  const viewport = api?.viewportEl.value;
+  if (!api || !viewport) {
+    stopSelectAutoScroll();
+    return;
+  }
+  viewport.scrollTop += selectAutoScrollDirection * SELECT_SCROLL_PX;
+  selectAutoScrollFrame = requestAnimationFrame(stepSelectAutoScroll);
+}
+
+function endSelectAutoScroll(): void {
+  stopSelectAutoScroll();
+  window.removeEventListener("pointerup", endSelectAutoScroll);
+  window.removeEventListener("pointercancel", endSelectAutoScroll);
+}
+
+function startSelectAutoScroll(api: SelectApi, direction: 1 | -1): void {
+  stopSelectAutoScroll();
+  selectAutoScrollApi = api;
+  selectAutoScrollDirection = direction;
+  selectAutoScrollFrame = requestAnimationFrame(stepSelectAutoScroll);
+  window.addEventListener("pointerup", endSelectAutoScroll);
+  window.addEventListener("pointercancel", endSelectAutoScroll);
+}
+
+function holdSelectScroll(
+  event: PointerEvent,
+  api: SelectApi,
+  direction: 1 | -1,
+): void {
+  event.preventDefault();
+  startSelectAutoScroll(api, direction);
+}
+
+function holdSelectScrollFromTarget(event: PointerEvent, api: SelectApi): void {
+  for (const node of event.composedPath()) {
+    if (!(node instanceof Element)) continue;
+    const slot = node.getAttribute("data-slot");
+    const shown = node.getAttribute("data-state") === "visible";
+    if (slot === "select-scroll-up-button") {
+      if (shown) holdSelectScroll(event, api, -1);
+      return;
+    }
+    if (slot === "select-scroll-down-button") {
+      if (shown) holdSelectScroll(event, api, 1);
+      return;
+    }
+  }
+}
+
+function syncSelectViewportScroll(api: SelectApi, viewport: HTMLElement | null): void {
+  if (!viewport) {
+    api.canScrollUp.value = false;
+    api.canScrollDown.value = false;
+    return;
+  }
+  const max = viewport.scrollHeight - viewport.clientHeight;
+  api.canScrollUp.value = viewport.scrollTop > 1;
+  api.canScrollDown.value = max > 1 && viewport.scrollTop < max - 1;
+}
 
 const SelectKey: InjectionKey<SelectApi> = Symbol("sinwan-ui.select");
 
@@ -63,6 +144,9 @@ const Select = cc<SelectProps>((props) => {
     placeholder: props.placeholder ?? "",
     triggerEl: signal<HTMLElement | null>(null),
     contentEl: signal<HTMLElement | null>(null),
+    viewportEl: signal<HTMLElement | null>(null),
+    canScrollUp: signal(false),
+    canScrollDown: signal(false),
   });
 
   return <>{props.children}</>;
@@ -142,13 +226,14 @@ type SelectContentProps = {
   align?: "start" | "center" | "end";
 };
 
-function SelectContent({
-  class: className,
-  children,
-  position = "popper",
-  align = "center",
-}: SelectContentProps) {
+const SelectContent = cc<SelectContentProps>((props) => {
+  const className = props.class;
+  const children = props.children;
+  const position = props.position ?? "popper";
+  const align = props.align ?? "center";
   const api = inject(SelectKey)!;
+  let viewportNode: HTMLElement | null = null;
+  let viewportObserver: ResizeObserver | null = null;
   const { style, present, side } = useAnchorPosition({
     open: () => api.open.value,
     trigger: () => api.triggerEl.value,
@@ -157,10 +242,38 @@ function SelectContent({
     align,
     gap: 4,
     fallbackSize: { width: 144, height: 200 },
-    extra: (anchor) => ({
-      minWidth: `${anchor.width}px`,
-    }),
+    extra: selectContentMinWidth,
   });
+  const onViewportScroll = () => {
+    syncSelectViewportScroll(api, viewportNode);
+  };
+  const unbindViewport = () => {
+    if (viewportNode) {
+      viewportNode.removeEventListener("scroll", onViewportScroll);
+    }
+    viewportObserver?.disconnect();
+    viewportObserver = null;
+    viewportNode = null;
+  };
+  const bindViewport = (el: HTMLElement | null) => {
+    unbindViewport();
+    api.viewportEl.value = el;
+    if (!el) {
+      syncSelectViewportScroll(api, null);
+      return;
+    }
+    viewportNode = el;
+    el.addEventListener("scroll", onViewportScroll, { passive: true });
+    viewportObserver = new ResizeObserver(onViewportScroll);
+    viewportObserver.observe(el);
+    const inner = el.firstElementChild;
+    if (inner) viewportObserver.observe(inner);
+    syncSelectViewportScroll(api, el);
+    requestAnimationFrame(onViewportScroll);
+  };
+  function onContentPointerDown(event: PointerEvent) {
+    holdSelectScrollFromTarget(event, api);
+  }
 
   onMounted(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -209,6 +322,8 @@ function SelectContent({
     onUnmounted(() => {
       document.removeEventListener("keydown", onKey);
       document.removeEventListener("pointerdown", onDoc);
+      unbindViewport();
+      stopSelectAutoScroll();
     });
   });
 
@@ -221,24 +336,30 @@ function SelectContent({
           data-align-trigger={position === "item-aligned" ? "" : undefined}
           role="listbox"
           class={cn(
-            "relative z-50 max-h-72 min-w-36 overflow-x-hidden overflow-y-auto rounded-lg bg-popover text-popover-foreground shadow-md ring-1 ring-foreground/10 duration-100 data-[side=bottom]:slide-in-from-top-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95",
+            "relative z-50 isolate flex max-h-72 min-w-36 flex-col overflow-hidden rounded-lg bg-popover text-popover-foreground shadow-md ring-1 ring-foreground/10 duration-100 data-[side=bottom]:slide-in-from-top-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95",
             className,
           )}
           style={() => style.value as unknown as string}
+          onpointerdown={onContentPointerDown}
           ref={(el: HTMLElement | null) => {
             api.contentEl.value = el;
           }}
         >
           <SelectScrollUpButton />
-          <div data-position={position} class="p-1">
-            {children}
+          <div
+            data-slot="select-viewport"
+            data-position={position}
+            class="min-h-0 flex-1 overflow-x-hidden overflow-y-auto p-1"
+            ref={bindViewport}
+          >
+            <div>{children}</div>
           </div>
           <SelectScrollDownButton />
         </div>
       </UiPortal>
     </Show>
   );
-}
+});
 
 type SelectLabelProps = {
   children?: SinwanNode;
@@ -263,29 +384,24 @@ type SelectItemProps = {
   disabled?: boolean;
 };
 
-function SelectItem({
-  class: className,
-  children,
-  value,
-  disabled,
-}: SelectItemProps) {
+const SelectItem = cc(function SelectItem(props: SelectItemProps) {
   const api = inject(SelectKey)!;
-  const selected = () => api.value.value === value;
+  const selected = () => api.value.value === props.value;
   return (
     <button
       type="button"
       role="option"
       data-slot="select-item"
-      data-disabled={disabled ? "true" : undefined}
+      data-disabled={() => (props.disabled ? "true" : undefined)}
       aria-selected={() => selected()}
-      disabled={disabled}
+      disabled={() => Boolean(props.disabled)}
       class={cn(
         "relative flex w-full cursor-default items-center gap-1.5 rounded-md py-1 pr-8 pl-1.5 text-sm outline-hidden select-none focus:bg-accent focus:text-accent-foreground data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
-        className,
+        props.class,
       )}
       onclick={(e: MouseEvent) => {
         const text = (e.currentTarget as HTMLElement).innerText.trim();
-        api.setValue(value, text);
+        api.setValue(props.value, text);
       }}
     >
       <span class="pointer-events-none absolute right-2 flex size-4 items-center justify-center">
@@ -293,10 +409,10 @@ function SelectItem({
           <Icon icon={Check} class="pointer-events-none" />
         </Show>
       </span>
-      {children}
+      {props.children}
     </button>
   );
-}
+});
 
 type SelectSeparatorProps = {
   class?: string;
@@ -315,33 +431,52 @@ type SelectScrollButtonProps = {
   class?: string;
 };
 
-function SelectScrollUpButton({ class: className }: SelectScrollButtonProps) {
+function SelectScrollButton(props: {
+  class?: string;
+  slot: "select-scroll-up-button" | "select-scroll-down-button";
+  icon: IconNode;
+  visible: Signal<boolean>;
+}) {
+  const className = props.class;
+  const visible = props.visible;
   return (
     <div
-      data-slot="select-scroll-up-button"
+      data-slot={props.slot}
+      data-state={() => (visible.value ? "visible" : "hidden")}
+      aria-hidden="true"
       class={cn(
-        "z-10 flex cursor-default items-center justify-center bg-popover py-1 [&_svg:not([class*='size-'])]:size-4",
+        "absolute inset-x-0 z-10 flex cursor-default items-center justify-center py-1.5 opacity-0 pointer-events-none transition-opacity duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] data-[slot=select-scroll-up-button]:top-0 data-[slot=select-scroll-up-button]:bg-gradient-to-b data-[slot=select-scroll-up-button]:from-popover data-[slot=select-scroll-up-button]:to-transparent data-[slot=select-scroll-down-button]:bottom-0 data-[slot=select-scroll-down-button]:bg-gradient-to-t data-[slot=select-scroll-down-button]:from-popover data-[slot=select-scroll-down-button]:to-transparent data-[state=visible]:pointer-events-auto data-[state=visible]:opacity-100 [&_svg:not([class*='size-'])]:size-4",
         className,
       )}
     >
-      <Icon icon={ChevronUp} />
+      <Icon icon={props.icon} />
     </div>
+  );
+}
+
+function SelectScrollUpButton({ class: className }: SelectScrollButtonProps) {
+  const api = inject(SelectKey)!;
+  return (
+    <SelectScrollButton
+      class={className}
+      slot="select-scroll-up-button"
+      icon={ChevronUp}
+      visible={api.canScrollUp}
+    />
   );
 }
 
 function SelectScrollDownButton({
   class: className,
 }: SelectScrollButtonProps) {
+  const api = inject(SelectKey)!;
   return (
-    <div
-      data-slot="select-scroll-down-button"
-      class={cn(
-        "z-10 flex cursor-default items-center justify-center bg-popover py-1 [&_svg:not([class*='size-'])]:size-4",
-        className,
-      )}
-    >
-      <Icon icon={ChevronDown} />
-    </div>
+    <SelectScrollButton
+      class={className}
+      slot="select-scroll-down-button"
+      icon={ChevronDown}
+      visible={api.canScrollDown}
+    />
   );
 }
 

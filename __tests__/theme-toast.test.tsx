@@ -1,4 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { inject } from "sinwan/component";
+import { signal } from "sinwan/reactivity";
+import { Button } from "../src/components/ui/button";
 import {
   ThemeProvider,
   ThemeToggle,
@@ -6,8 +9,11 @@ import {
   type ThemeApi,
 } from "../src/theme/theme-provider";
 import {
+  DirectionKey,
   DirectionProvider,
   useDirection,
+  type Direction,
+  type DirectionApi,
 } from "../src/theme/direction";
 import { useIsMobile } from "../src/hooks/use-mobile";
 import { toast, Toaster } from "../src/toast";
@@ -69,6 +75,62 @@ describe("ThemeProvider", () => {
   test("useTheme throws outside provider", () => {
     expect(() => withSetup(() => useTheme())).toThrow(/ThemeProvider/);
   });
+
+  test("locks transitions and applies document theme before variant classes", () => {
+    let api: ThemeApi | undefined;
+    const htmlWhenVariantRan: string[] = [];
+    const Child = () => {
+      api = useTheme();
+      return (
+        <Button
+          // @ts-expect-error uncompiled live getter
+          variant={() => {
+            htmlWhenVariantRan.push(document.documentElement.className);
+            return api!.theme.value === "dark" ? "default" : "outline";
+          }}
+        >
+          Dark
+        </Button>
+      );
+    };
+    const { query, unmount } = mountUi(() => (
+      <ThemeProvider defaultTheme="light">
+        <Child />
+      </ThemeProvider>
+    ));
+    htmlWhenVariantRan.length = 0;
+    api!.setTheme("dark");
+    const lock = [...document.head.querySelectorAll("style")].some((style) =>
+      (style.textContent ?? "").includes("transition:none"),
+    );
+    expect(lock).toBe(true);
+    expect(htmlWhenVariantRan.at(-1)).toContain("dark");
+    expect(query("[data-slot=button]")?.getAttribute("data-variant")).toBe(
+      "default",
+    );
+    expect(query("[data-slot=button]")?.className).toContain("bg-primary");
+    unmount();
+  });
+
+  test("keeps CSS transitions when disableTransitionOnChange is false", () => {
+    let api: ThemeApi | undefined;
+    const Child = () => {
+      api = useTheme();
+      return <span>child</span>;
+    };
+    const { unmount } = mountUi(() => (
+      <ThemeProvider defaultTheme="light" disableTransitionOnChange={false}>
+        <Child />
+      </ThemeProvider>
+    ));
+    api!.setTheme("dark");
+    const lock = [...document.head.querySelectorAll("style")].some((style) =>
+      (style.textContent ?? "").includes("transition:none"),
+    );
+    expect(lock).toBe(false);
+    expect(document.documentElement.classList.contains("dark")).toBe(true);
+    unmount();
+  });
 });
 
 describe("DirectionProvider", () => {
@@ -89,6 +151,49 @@ describe("DirectionProvider", () => {
     );
     unmount();
     expect(withSetup(() => useDirection())).toBe("ltr");
+  });
+
+  test("live dir prop updates the wrapper attribute", async () => {
+    const dir = signal<Direction>("ltr");
+    const { root, unmount } = mountUi(() => (
+      <DirectionProvider
+        // @ts-expect-error uncompiled live getter
+        dir={() => dir.value}
+      >
+        <span>sample</span>
+      </DirectionProvider>
+    ));
+    const provider = () =>
+      root.querySelector('[data-slot="direction-provider"]');
+    expect(provider()?.getAttribute("dir")).toBe("ltr");
+    dir.value = "rtl";
+    await Promise.resolve();
+    expect(provider()?.getAttribute("dir")).toBe("rtl");
+    unmount();
+  });
+
+  test("uncontrolled setDir updates the wrapper attribute", async () => {
+    let api: DirectionApi | undefined;
+    const { root, unmount } = mountUi(() => {
+      const Probe = () => {
+        api = inject(DirectionKey);
+        return <span />;
+      };
+      return (
+        <DirectionProvider>
+          <Probe />
+        </DirectionProvider>
+      );
+    });
+    expect(
+      root.querySelector('[data-slot="direction-provider"]')?.getAttribute("dir"),
+    ).toBe("ltr");
+    api!.setDir("rtl");
+    await Promise.resolve();
+    expect(
+      root.querySelector('[data-slot="direction-provider"]')?.getAttribute("dir"),
+    ).toBe("rtl");
+    unmount();
   });
 });
 

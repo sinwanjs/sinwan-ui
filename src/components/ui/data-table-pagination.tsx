@@ -99,7 +99,7 @@ const DataTablePaginationHost = cc<DataTablePaginationHostProps>(
                   disabled={canPrev}
                   onclick={() => table.firstPage()}
                 >
-                  <Icon icon={ChevronsLeft} />
+                  <Icon icon={ChevronsLeft} class="rtl:rotate-180" />
                 </Button>
                 <Button
                   variant="outline"
@@ -109,7 +109,7 @@ const DataTablePaginationHost = cc<DataTablePaginationHostProps>(
                   disabled={canPrev}
                   onclick={() => table.previousPage()}
                 >
-                  <Icon icon={ChevronLeft} />
+                  <Icon icon={ChevronLeft} class="rtl:rotate-180" />
                 </Button>
                 <Button
                   variant="outline"
@@ -119,7 +119,7 @@ const DataTablePaginationHost = cc<DataTablePaginationHostProps>(
                   disabled={canNext}
                   onclick={() => table.nextPage()}
                 >
-                  <Icon icon={ChevronRight} />
+                  <Icon icon={ChevronRight} class="rtl:rotate-180" />
                 </Button>
                 <Button
                   variant="outline"
@@ -129,7 +129,7 @@ const DataTablePaginationHost = cc<DataTablePaginationHostProps>(
                   disabled={canNext}
                   onclick={() => table.lastPage()}
                 >
-                  <Icon icon={ChevronsRight} />
+                  <Icon icon={ChevronsRight} class="rtl:rotate-180" />
                 </Button>
               </div>
             </div>

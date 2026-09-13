@@ -247,6 +247,15 @@ describe("DataTable", () => {
     await flush();
     clickMenuItem("Hide");
     await flush();
+    expect(
+      root.querySelector('[data-slot="table-header"] [data-column-id="email"]'),
+    ).toBeNull();
+    expect(
+      root.querySelector('[data-slot="table-body"] [data-column-id="email"]'),
+    ).toBeNull();
+    expect(
+      root.querySelector('[data-slot="table-body"] [data-column-id="amount"]'),
+    ).toBeTruthy();
 
     const next = root.querySelector(
       '[data-slot="data-table-next-page"]',
@@ -309,6 +318,26 @@ describe("DataTable", () => {
     expect(amountItem).toBeTruthy();
     amountItem?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     await flush();
+    expect(
+      root.querySelector('[data-slot="table-header"] [data-column-id="amount"]'),
+    ).toBeNull();
+    expect(
+      root.querySelector('[data-slot="table-body"] [data-column-id="amount"]'),
+    ).toBeNull();
+    expect(
+      root.querySelector('[data-slot="table-body"] [data-column-id="email"]'),
+    ).toBeTruthy();
+    expect(amountItem?.getAttribute("aria-checked")).toBe("false");
+
+    amountItem?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await flush();
+    expect(
+      root.querySelector('[data-slot="table-header"] [data-column-id="amount"]'),
+    ).toBeTruthy();
+    expect(
+      root.querySelector('[data-slot="table-body"] [data-column-id="amount"]'),
+    ).toBeTruthy();
+    expect(amountItem?.getAttribute("aria-checked")).toBe("true");
 
     unmount();
   });
@@ -350,6 +379,55 @@ describe("DataTable", () => {
     ));
     expect(grouped.root.textContent).toContain("Info");
     grouped.unmount();
+
+    const rtl = mountUi(() => (
+      <div dir="rtl">
+        <DataTable
+          columns={columns}
+          data={payments.slice(0, 2)}
+          hidePagination
+          getRowId={(row) => row.id}
+        />
+      </div>
+    ));
+    const rtlTable = rtl.root.querySelector('[data-slot="data-table"]');
+    expect(rtlTable).toBeTruthy();
+    expect(rtl.root.textContent).toContain("m@example.com");
+    expect(
+      rtl.root.querySelector('[data-slot="table-head"]')?.className,
+    ).toContain("text-start");
+    expect(
+      rtl.root.querySelector('[data-slot="table-container"]')?.className,
+    ).toContain("min-w-0");
+    expect(
+      rtl.root.querySelector('[data-slot="table-body"] [data-column-id="email"]'),
+    ).toBeTruthy();
+    expect(
+      rtl.root.querySelectorAll('[data-slot="table-body"] [data-column-id]').length,
+    ).toBe(
+      rtl.root.querySelectorAll('[data-slot="table-header"] [data-column-id]')
+        .length * 2,
+    );
+
+    triggerByText(rtl.root, "View").dispatchEvent(
+      new MouseEvent("click", { bubbles: true }),
+    );
+    await flush();
+    const rtlAmountItem = Array.from(
+      document.querySelectorAll('[data-slot="dropdown-menu-checkbox-item"]'),
+    ).find((node) => node.textContent?.toLowerCase().includes("amount"));
+    rtlAmountItem?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await flush();
+    expect(
+      rtl.root.querySelector('[data-slot="table-header"] [data-column-id="amount"]'),
+    ).toBeNull();
+    expect(
+      rtl.root.querySelector('[data-slot="table-body"] [data-column-id="amount"]'),
+    ).toBeNull();
+    expect(
+      rtl.root.querySelector('[data-slot="table-body"] [data-column-id="email"]'),
+    ).toBeTruthy();
+    rtl.unmount();
   });
 
   test("flex render covers footer and unusual cell values", async () => {

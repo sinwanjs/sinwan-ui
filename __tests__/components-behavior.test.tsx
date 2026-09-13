@@ -15,6 +15,11 @@ import {
   SheetTrigger,
 } from "../src/components/ui/sheet";
 import {
+  Drawer,
+  DrawerContent,
+  DrawerTitle,
+} from "../src/components/ui/drawer";
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -25,7 +30,9 @@ import {
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "../src/components/ui/select";
@@ -103,7 +110,14 @@ import {
   ComboboxTrigger,
   ComboboxValue,
 } from "../src/components/ui/combobox";
-import { asVNode, mountUi, setupDom, teardownDom, withSetup } from "./helpers";
+import {
+  asVNode,
+  lastResizeObserver,
+  mountUi,
+  setupDom,
+  teardownDom,
+  withSetup,
+} from "./helpers";
 
 beforeEach(() => {
   setupDom();
@@ -150,7 +164,7 @@ describe("Button behavior", () => {
           prevented = true;
         },
       });
-      Object.defineProperty(evt, "stopPropagation", { value: () => {} });
+      Object.defineProperty(evt, "stopPropagation", { value: () => { } });
       (disabled.props.onclick as (e: Event) => void)(evt);
       expect(prevented).toBe(true);
 
@@ -347,6 +361,45 @@ describe("Dialog Sheet AlertDialog", () => {
   });
 });
 
+describe("Drawer inset", () => {
+  test("content is inset from the viewport with all corners rounded", () => {
+    const bottom = mountUi(() => (
+      <Drawer defaultOpen>
+        <DrawerContent>
+          <DrawerTitle>Bottom</DrawerTitle>
+        </DrawerContent>
+      </Drawer>
+    ));
+    const bottomPanel = bottom.query(
+      '[data-slot="drawer-content"]',
+    ) as HTMLElement;
+    expect(bottomPanel.className).toContain("rounded-xl");
+    expect(bottomPanel.className).toContain("inset-x-4");
+    expect(bottomPanel.className).toContain("bottom-4");
+    expect(bottomPanel.className).not.toContain("inset-x-0");
+    expect(bottomPanel.className).not.toContain("rounded-t-xl");
+    bottom.unmount();
+
+    const side = mountUi(() => (
+      <Drawer defaultOpen>
+        <DrawerContent direction="left">
+          <DrawerTitle>Left</DrawerTitle>
+        </DrawerContent>
+      </Drawer>
+    ));
+    const sidePanel = side.query(
+      '[data-slot="drawer-content"]',
+    ) as HTMLElement;
+    expect(sidePanel.getAttribute("data-vaul-drawer-direction")).toBe("left");
+    expect(sidePanel.className).toContain("rounded-xl");
+    expect(sidePanel.className).toContain("inset-y-4");
+    expect(sidePanel.className).toContain("left-4");
+    expect(sidePanel.className).not.toContain("inset-y-0");
+    expect(sidePanel.className).not.toContain("rounded-r-xl");
+    side.unmount();
+  });
+});
+
 describe("Select Tabs Checkbox Switch Toggle", () => {
   test("select open and pick item", () => {
     let picked = "";
@@ -373,6 +426,191 @@ describe("Select Tabs Checkbox Switch Toggle", () => {
     );
     expect(picked).toBe("pear");
     void click;
+    unmount();
+  });
+
+  test("select mapped item value is a string, not a compiler getter", () => {
+    const options = [
+      { value: "est", label: "Eastern" },
+      { value: "pst", label: "Pacific" },
+    ];
+    let picked: unknown = "";
+    const { unmount } = mountUi(() => (
+      <Select
+        defaultOpen
+        onValueChange={(v) => {
+          picked = v;
+        }}
+      >
+        <SelectTrigger>
+          <SelectValue placeholder="Pick" />
+        </SelectTrigger>
+        <SelectContent>
+          {options.map((item) => (
+            <SelectItem
+              // @ts-expect-error uncompiled live getter
+              value={() => item.value}
+            >
+              {item.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    ));
+    const items = document.querySelectorAll('[data-slot="select-item"]');
+    expect(items.length).toBe(2);
+    (items[1] as HTMLElement).dispatchEvent(
+      new MouseEvent("click", { bubbles: true }),
+    );
+    expect(picked).toBe("pst");
+    expect(typeof picked).toBe("string");
+    unmount();
+  });
+
+  test("hides scroll chevrons when the list fits", () => {
+    const { unmount } = mountUi(() => (
+      <Select defaultOpen>
+        <SelectTrigger>
+          <SelectValue placeholder="Pick" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="a">A</SelectItem>
+          <SelectItem value="b">B</SelectItem>
+        </SelectContent>
+      </Select>
+    ));
+    expect(
+      document
+        .querySelector('[data-slot="select-scroll-up-button"]')
+        ?.getAttribute("data-state"),
+    ).toBe("hidden");
+    expect(
+      document
+        .querySelector('[data-slot="select-scroll-down-button"]')
+        ?.getAttribute("data-state"),
+    ).toBe("hidden");
+    unmount();
+  });
+
+  test("pins overflow chevrons and auto-scrolls while held", async () => {
+    const { unmount } = mountUi(() => (
+      <Select defaultOpen>
+        <SelectTrigger>
+          <SelectValue placeholder="Pick" />
+        </SelectTrigger>
+        <SelectContent class="w-48" position="item-aligned" align="start">
+          <SelectGroup class="tz-group">
+            <SelectLabel class="tz-label">Group</SelectLabel>
+            <SelectItem value="a">A</SelectItem>
+            <SelectItem value="b">B</SelectItem>
+            <SelectItem value="c">C</SelectItem>
+          </SelectGroup>
+        </SelectContent>
+      </Select>
+    ));
+    const content = document.querySelector(
+      '[data-slot="select-content"]',
+    ) as HTMLElement;
+    const viewport = document.querySelector(
+      '[data-slot="select-viewport"]',
+    ) as HTMLElement;
+    expect(content.getAttribute("data-align-trigger")).toBe("");
+    Object.defineProperty(viewport, "clientHeight", {
+      value: 100,
+      configurable: true,
+    });
+    Object.defineProperty(viewport, "scrollHeight", {
+      value: 400,
+      configurable: true,
+    });
+    Object.defineProperty(viewport, "scrollTop", {
+      value: 0,
+      writable: true,
+      configurable: true,
+    });
+    lastResizeObserver?.trigger([]);
+    viewport.dispatchEvent(new Event("scroll", { bubbles: true }));
+    await Promise.resolve();
+    await Promise.resolve();
+    const upBtn = document.querySelector(
+      '[data-slot="select-scroll-up-button"]',
+    ) as HTMLElement;
+    const downBtn = document.querySelector(
+      '[data-slot="select-scroll-down-button"]',
+    ) as HTMLElement;
+    expect(downBtn.getAttribute("data-state")).toBe("visible");
+    expect(upBtn.getAttribute("data-state")).toBe("hidden");
+    expect(viewport.parentElement).toBe(content);
+    expect(downBtn.parentElement).toBe(content);
+    upBtn.dispatchEvent(
+      new MouseEvent("pointerdown", { bubbles: true, cancelable: true }),
+    );
+    expect(viewport.scrollTop).toBe(0);
+
+    viewport.scrollTop = 80;
+    viewport.dispatchEvent(new Event("scroll", { bubbles: true }));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(upBtn.getAttribute("data-state")).toBe("visible");
+    expect(downBtn.getAttribute("data-state")).toBe("visible");
+
+    viewport.scrollTop = 300;
+    viewport.dispatchEvent(new Event("scroll", { bubbles: true }));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(upBtn.getAttribute("data-state")).toBe("visible");
+    expect(downBtn.getAttribute("data-state")).toBe("hidden");
+    downBtn.dispatchEvent(
+      new MouseEvent("pointerdown", { bubbles: true, cancelable: true }),
+    );
+    expect(viewport.scrollTop).toBe(300);
+
+    viewport.scrollTop = 80;
+    viewport.dispatchEvent(new Event("scroll", { bubbles: true }));
+    await Promise.resolve();
+    await Promise.resolve();
+    downBtn.dispatchEvent(
+      new MouseEvent("pointerdown", { bubbles: true, cancelable: true }),
+    );
+    await new Promise((r) => setTimeout(r, 0));
+    expect(viewport.scrollTop).toBeGreaterThan(80);
+    window.dispatchEvent(new Event("pointerup"));
+    const stopped = viewport.scrollTop;
+    await new Promise((r) => setTimeout(r, 0));
+    expect(viewport.scrollTop).toBe(stopped);
+
+    upBtn.dispatchEvent(
+      new MouseEvent("pointerdown", { bubbles: true, cancelable: true }),
+    );
+    await new Promise((r) => setTimeout(r, 0));
+    window.dispatchEvent(new Event("pointercancel"));
+
+    downBtn.dispatchEvent(
+      new MouseEvent("pointerdown", { bubbles: true, cancelable: true }),
+    );
+    document.body.dispatchEvent(
+      new MouseEvent("pointerdown", { bubbles: true }),
+    );
+    await new Promise((r) => setTimeout(r, 0));
+    const trigger = document.querySelector(
+      '[data-slot="select-trigger"]',
+    ) as HTMLElement;
+    trigger.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 0));
+    unmount();
+  });
+
+  test("empty select content still mounts a viewport", async () => {
+    const { unmount } = mountUi(() => (
+      <Select defaultOpen>
+        <SelectTrigger>
+          <SelectValue placeholder="Pick" />
+        </SelectTrigger>
+        <SelectContent />
+      </Select>
+    ));
+    expect(document.querySelector('[data-slot="select-viewport"]')).toBeTruthy();
+    await new Promise((r) => setTimeout(r, 0));
     unmount();
   });
 
@@ -591,7 +829,7 @@ describe("Calendar Chart InputOTP Carousel", () => {
         showOutsideDays
         locale={{ code: "en-US" }}
         onSelect={(d) => {
-          selected = d;
+          selected = d instanceof Date ? d : undefined;
         }}
         onMonthChange={(m) => {
           month = m;
@@ -615,6 +853,233 @@ describe("Calendar Chart InputOTP Carousel", () => {
       <Calendar month={new Date(2024, 0, 1)} showOutsideDays={false} disabled />
     ));
     hidden.unmount();
+  });
+
+  test("calendar range multiple weeks dropdown timezone and modifiers", () => {
+    let range: Date | Date[] | { from?: Date; to?: Date } | undefined;
+    const booked = [new Date(2024, 5, 12), new Date(2024, 5, 13)];
+    const { root, click, unmount } = mountUi(() => (
+      <Calendar
+        mode="range"
+        month={new Date(2024, 5, 1)}
+        numberOfMonths={2}
+        showWeekNumber
+        captionLayout="dropdown"
+        weekStartsOn={1}
+        fromYear={2023}
+        toYear={2025}
+        timeZone="UTC"
+        dir="rtl"
+        locale="en-GB"
+        disabled={booked}
+        modifiers={{ booked }}
+        modifiersClassNames={{ booked: "line-through" }}
+        renderDay={(ctx) => (ctx.disabled ? <span>x</span> : null)}
+        onSelect={(value) => {
+          range = value;
+        }}
+      />
+    ));
+    expect(root.querySelector('[data-slot="calendar"]')?.getAttribute("dir")).toBe(
+      "rtl",
+    );
+    expect(root.querySelector('[aria-label="Month"]')).toBeTruthy();
+    const enabled = Array.from(root.querySelectorAll("button")).filter(
+      (button) =>
+        /^\d+$/.test(button.textContent ?? "") &&
+        !(button as HTMLButtonElement).disabled,
+    );
+    enabled[4]?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    enabled[10]?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(range && "from" in range && range.from).toBeTruthy();
+    expect(range && "to" in range && range.to).toBeTruthy();
+    const monthSelect = root.querySelector(
+      '[aria-label="Month"]',
+    ) as HTMLSelectElement;
+    monthSelect.value = "0";
+    monthSelect.dispatchEvent(new Event("change", { bubbles: true }));
+    const yearSelect = root.querySelector(
+      '[aria-label="Year"]',
+    ) as HTMLSelectElement;
+    yearSelect.value = "2025";
+    yearSelect.dispatchEvent(new Event("change", { bubbles: true }));
+    void click;
+    unmount();
+
+    let many: Date | Date[] | { from?: Date; to?: Date } | undefined = [];
+    const multi = mountUi(() => (
+      <Calendar
+        mode="multiple"
+        month={new Date(2024, 0, 1)}
+        onSelect={(value) => {
+          many = value;
+        }}
+      />
+    ));
+    const multiDays = Array.from(multi.root.querySelectorAll("button")).filter(
+      (button) =>
+        /^\d+$/.test(button.textContent ?? "") &&
+        !(button as HTMLButtonElement).disabled,
+    );
+    multiDays[2]?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    multiDays[3]?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    multiDays[2]?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(Array.isArray(many)).toBe(true);
+    multi.unmount();
+
+    let single: Date | Date[] | { from?: Date; to?: Date } | undefined;
+    const one = mountUi(() => (
+      <Calendar
+        month={new Date(2024, 0, 1)}
+        selected={new Date(2024, 0, 15)}
+        disabled={(date) => date.getDate() === 2}
+        onSelect={(value) => {
+          single = value;
+        }}
+      />
+    ));
+    const day15 = Array.from(one.root.querySelectorAll("button")).find(
+      (button) => button.textContent === "15",
+    );
+    day15?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(single).toBeUndefined();
+    const day2 = Array.from(one.root.querySelectorAll("button")).find(
+      (button) => button.textContent === "2",
+    );
+    day2?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    const day16 = Array.from(one.root.querySelectorAll("button")).find(
+      (button) => button.textContent === "16",
+    );
+    day16?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(single instanceof Date).toBe(true);
+    one.unmount();
+
+    let reverse: Date | Date[] | { from?: Date; to?: Date } | undefined;
+    const swap = mountUi(() => (
+      <Calendar
+        mode="range"
+        month={new Date(2024, 0, 1)}
+        locale="en-US"
+        modifiers={{
+          weekend: (date) => date.getDay() === 0 || date.getDay() === 6,
+        }}
+        modifiersClassNames={{
+          weekend: "opacity-80",
+          unused: "hidden",
+        }}
+        onSelect={(value) => {
+          reverse = value;
+        }}
+      />
+    ));
+    const jan20 = swap.root.querySelector(
+      `[data-day="${new Date(2024, 0, 20).toLocaleDateString("en-US")}"]`,
+    );
+    jan20?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    const jan25 = swap.root.querySelector(
+      `[data-day="${new Date(2024, 0, 25).toLocaleDateString("en-US")}"]`,
+    );
+    jan25?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(reverse && "to" in reverse && reverse.to?.getDate()).toBe(25);
+    jan20?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    const jan5 = swap.root.querySelector(
+      `[data-day="${new Date(2024, 0, 5).toLocaleDateString("en-US")}"]`,
+    );
+    jan5?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(reverse && "from" in reverse && reverse.from?.getDate()).toBe(5);
+    expect(reverse && "to" in reverse && reverse.to?.getDate()).toBe(20);
+    swap.unmount();
+
+    const extras = mountUi(() => (
+      <Calendar
+        mode="multiple"
+        numberOfMonths={0}
+        captionLayout="dropdown"
+        buttonVariant="outline"
+        locale={{}}
+        selected={[new Date(2024, 0, 8)]}
+        disabled={false}
+      />
+    ));
+    expect(extras.root.querySelector('[aria-label="Month"]')).toBeTruthy();
+    extras.unmount();
+
+    const ranged = mountUi(() => (
+      <Calendar
+        mode="range"
+        month={new Date(2024, 0, 1)}
+        selected={{ from: new Date(2024, 0, 10), to: new Date(2024, 0, 18) }}
+      />
+    ));
+    expect(
+      ranged.root.querySelector('[data-range-middle="true"]'),
+    ).toBeTruthy();
+    ranged.unmount();
+
+    const hijri = mountUi(() => (
+      <Calendar
+        locale="ar-SA"
+        calendar="islamic-umalqura"
+        dir="rtl"
+        weekStartsOn={6}
+        month={new Date(2026, 8, 13)}
+        captionLayout="dropdown"
+        onMonthChange={() => { }}
+      />
+    ));
+    expect(hijri.root.querySelector('[data-calendar="islamic-umalqura"]')).toBeTruthy();
+    const hijriDays = Array.from(hijri.root.querySelectorAll("[data-day]"));
+    expect(hijriDays.some((button) => /[٠-٩]/.test(button.textContent ?? ""))).toBe(
+      true,
+    );
+    hijri.click('[aria-label="Previous month"]');
+    hijri.click('[aria-label="Next month"]');
+    const hijriMonth = hijri.root.querySelector(
+      '[aria-label="Month"]',
+    ) as HTMLSelectElement;
+    hijriMonth.value = "1";
+    hijriMonth.dispatchEvent(new Event("change", { bubbles: true }));
+    const hijriYear = hijri.root.querySelector(
+      '[aria-label="Year"]',
+    ) as HTMLSelectElement;
+    const otherYear = Array.from(hijriYear.options).find(
+      (option) => option.value !== hijriYear.value,
+    );
+    if (otherYear) {
+      hijriYear.value = otherYear.value;
+      hijriYear.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+    hijri.unmount();
+
+    const arabicGregory = mountUi(() => (
+      <Calendar
+        locale="ar-SA"
+        calendar="gregory"
+        month={new Date(2026, 8, 13)}
+      />
+    ));
+    expect(arabicGregory.root.textContent).toContain("١٣");
+    arabicGregory.unmount();
+
+    const jalali = mountUi(() => (
+      <Calendar
+        locale="fa-IR"
+        calendar="persian"
+        month={new Date(2026, 8, 13)}
+        captionLayout="dropdown"
+      />
+    ));
+    const jalaliMonth = jalali.root.querySelector(
+      '[aria-label="Month"]',
+    ) as HTMLSelectElement;
+    jalaliMonth.value = "7";
+    jalaliMonth.dispatchEvent(new Event("change", { bubbles: true }));
+    jalali.unmount();
+
+    const isoCal = mountUi(() => (
+      <Calendar calendar="iso8601" month={new Date(2024, 0, 1)} />
+    ));
+    isoCal.unmount();
   });
 
   test("chart container with series", () => {

@@ -49,7 +49,7 @@ const DataTableColumnHeaderHost = cc<DataTableColumnHeaderHostProps>(
           <DropdownMenuTrigger
             class={cn(
               buttonVariants({ variant: "ghost", size: "sm" }),
-              "-ml-3 h-8 gap-1",
+              "-ms-3 h-8 gap-1",
             )}
           >
             <span>{title}</span>

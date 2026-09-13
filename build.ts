@@ -23,7 +23,7 @@ async function buildBundle(): Promise<void> {
     root: `${ROOT}/src`,
     target: "browser",
     sourcemap: "linked",
-    plugins: [sinwan({ dev: false })],
+    plugins: [sinwan()],
     external: [
       "sinwan",
       "sinwan/reactivity",

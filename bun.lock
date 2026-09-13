@@ -10,7 +10,7 @@
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
         "lucide": "^0.544.0",
-        "tailwind-merge": "^3.6.0",
+        "tailwind-merge": "^3.7.0",
       },
       "devDependencies": {
         "@types/bun": "latest",
@@ -139,9 +139,9 @@
 
     "sinwan": ["sinwan@1.4.0", "", { "dependencies": { "csstype": "^3.2.3" }, "peerDependencies": { "typescript": "^5.9.3" } }, "sha512-l8f9K8dy8/tPIb8/3PX0IfszUFgtm+RO+al4hEMbGfFkQacy8hh4y1qzQoI+PTfJz//ptc+RWUWTMbpf4rWq8w=="],
 
-    "sinwan-compiler": ["sinwan-compiler@0.3.0", "", { "dependencies": { "@babel/core": "^7.24.0", "@babel/generator": "^7.24.0", "@babel/parser": "^7.24.0", "@babel/traverse": "^7.24.0", "@babel/types": "^7.24.0" }, "peerDependencies": { "typescript": "^5" }, "bin": { "sinwan": "dist/cli.js" } }, "sha512-vNlKvFz//SfBTlALgS3g45LxBxOkML6PEj0Nx0IWpAwNMXuRxW+gkvdcXLPf9FSdmI0TsNDvXOkE5v76KxrTWQ=="],
+    "sinwan-compiler": ["sinwan-compiler@0.3.1", "", { "dependencies": { "@babel/core": "^7.24.0", "@babel/generator": "^7.24.0", "@babel/parser": "^7.24.0", "@babel/traverse": "^7.24.0", "@babel/types": "^7.24.0" }, "peerDependencies": { "typescript": "^5" }, "bin": { "sinwan": "dist/cli.js" } }, "sha512-OLcoBhKuqPY3RspgUtMP2CMJPcmuiEsHpcjsrxq188pkmKU49Keh+r4/m4gzUc75RB6O1CqruS6dvgVZvKNhmA=="],
 
-    "tailwind-merge": ["tailwind-merge@3.6.0", "", {}, "sha512-uxL7qAVQriqRQPAyK3pj66VqskWqoZ37PW94jwOTwNfq/z9oyu1V+eqrZqtR2+fCiXdYOZe/Modt8GtvqNzu+w=="],
+    "tailwind-merge": ["tailwind-merge@3.7.0", "", {}, "sha512-XPPUyAc+cvspz3lHTcR/QgPfW2A0lv/xQNIjX3HGhLR+Nq2lHaLq5MtTesHn8GUr3W3DguT2KT5x3NVgRtYwmA=="],
 
     "tailwindcss": ["tailwindcss@4.3.3", "", {}, "sha512-gOhV3P7ufE62QDGg1zVaTgCR+EtPv92k2nIhVcVKcLmxT1sUBsQGhnZj175j+MqRt4zLF7ic+sCYjfhxMxj7YQ=="],
 

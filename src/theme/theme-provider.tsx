@@ -7,7 +7,7 @@ import {
   type InjectionKey,
   type SinwanNode,
 } from "sinwan/component";
-import { computed, signal, type Signal } from "sinwan/reactivity";
+import { batch, computed, signal, type Signal } from "sinwan/reactivity";
 
 export type Theme = "light" | "dark" | "system";
 export type ResolvedTheme = "light" | "dark";
@@ -65,24 +65,19 @@ function disableTransitionsTemporarily(): () => void {
   };
 }
 
-function applyDomTheme(
-  resolved: ResolvedTheme,
+function writeDomTheme(
+  next: ResolvedTheme,
   attribute: "class" | "data-theme",
-  disableTransitionOnChange: boolean,
 ): void {
   if (typeof document === "undefined") return;
-  const restore = disableTransitionOnChange
-    ? disableTransitionsTemporarily()
-    : null;
   const root = document.documentElement;
   if (attribute === "class") {
     root.classList.remove("light", "dark");
-    root.classList.add(resolved);
+    root.classList.add(next);
   } else {
-    root.setAttribute("data-theme", resolved);
+    root.setAttribute("data-theme", next);
   }
-  root.style.colorScheme = resolved;
-  restore?.();
+  root.style.colorScheme = next;
 }
 
 export const ThemeProvider = cc<ThemeProviderProps>(
@@ -91,7 +86,7 @@ export const ThemeProvider = cc<ThemeProviderProps>(
     defaultTheme = "system",
     forcedTheme,
     storageKey = "sinwan-ui-theme",
-    disableTransitionOnChange = false,
+    disableTransitionOnChange = true,
     enableSystem = true,
     attribute = "class",
   }) => {
@@ -108,30 +103,39 @@ export const ThemeProvider = cc<ThemeProviderProps>(
       return value;
     };
 
-    const apply = (value: Theme) => {
+    const commit = (value: Theme, nextTheme?: Theme) => {
       const next = resolve(value);
-      resolved.value = next;
-      applyDomTheme(next, attribute, disableTransitionOnChange);
+      const restore =
+        disableTransitionOnChange && typeof document !== "undefined"
+          ? disableTransitionsTemporarily()
+          : null;
+      writeDomTheme(next, attribute);
+      batch(() => {
+        if (nextTheme !== undefined) {
+          theme.value = nextTheme;
+        }
+        resolved.value = next;
+      });
+      restore?.();
     };
 
     const setTheme = (value: Theme) => {
       if (forcedTheme) return;
-      theme.value = value;
       try {
         localStorage.setItem(storageKey, value);
       } catch {
         /* ignore */
       }
-      apply(value);
+      commit(value, value);
     };
 
     onMounted(() => {
-      apply(theme.value);
+      commit(theme.value);
       if (!enableSystem) return;
       const mq = window.matchMedia("(prefers-color-scheme: dark)");
       const onChange = () => {
         if (theme.value === "system" || forcedTheme === "system") {
-          apply("system");
+          commit("system");
         }
       };
       mq.addEventListener("change", onChange);

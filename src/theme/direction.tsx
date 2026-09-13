@@ -1,10 +1,11 @@
 import { cc, inject, provide, type InjectionKey, type SinwanNode } from "sinwan/component";
-import { signal, type Signal } from "sinwan/reactivity";
+
+import { createLiveState } from "../lib/live-state";
 
 export type Direction = "ltr" | "rtl";
 
 export type DirectionApi = {
-  dir: Signal<Direction>;
+  dir: { readonly value: Direction };
   setDir: (dir: Direction) => void;
 };
 
@@ -17,25 +18,25 @@ export type DirectionProviderProps = {
   dir?: Direction;
 };
 
-export const DirectionProvider = cc<DirectionProviderProps>(
-  ({ children, dir: initial = "ltr" }) => {
-    const dir = signal<Direction>(initial);
-    provide(DirectionKey, {
-      dir,
-      setDir: (value: Direction) => {
-        dir.value = value;
-      },
-    });
-    return (
-      <div
-        dir={() => dir.value}
-        data-slot="direction-provider"
-      >
-        {children}
-      </div>
-    );
-  },
-);
+export const DirectionProvider = cc<DirectionProviderProps>((props) => {
+  const { state: dir, set: setDir } = createLiveState<Direction>(
+    "dir" in props,
+    "ltr",
+    () => props.dir ?? "ltr",
+  );
+  provide(DirectionKey, {
+    dir,
+    setDir,
+  });
+  return (
+    <div
+      dir={() => dir.value}
+      data-slot="direction-provider"
+    >
+      {props.children}
+    </div>
+  );
+});
 
 export function useDirection(): Direction {
   const api = inject(DirectionKey);

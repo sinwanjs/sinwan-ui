@@ -90,7 +90,7 @@ const DataTableHost = cc<DataTableHostProps>((props) => {
           {showView ? <DataTableViewOptions table={table} /> : null}
         </div>
       ) : null}
-      <div class="overflow-hidden rounded-md border">
+      <div class="min-w-0 w-full rounded-md border">
         <Table>
           <TableHeader>
             <For
@@ -101,9 +101,17 @@ const DataTableHost = cc<DataTableHostProps>((props) => {
             >
               {(headerGroup) => (
                 <TableRow>
-                  <For each={() => headerGroup.headers}>
+                  <For
+                    each={() => {
+                      revision.value;
+                      return headerGroup.headers;
+                    }}
+                  >
                     {(header) => (
-                      <TableHead colSpan={header.colSpan}>
+                      <TableHead
+                        colSpan={header.colSpan}
+                        data-column-id={header.column.id}
+                      >
                         {header.isPlaceholder ? null : (
                           <DataTableFlexRender header={header} />
                         )}
@@ -123,7 +131,7 @@ const DataTableHost = cc<DataTableHostProps>((props) => {
               fallback={
                 <TableRow>
                   <TableCell
-                    colSpan={props.columns.length}
+                    colSpan={Math.max(table.getVisibleLeafColumns().length, 1)}
                     class="h-24 text-center"
                     data-slot="data-table-empty"
                   >
@@ -139,9 +147,14 @@ const DataTableHost = cc<DataTableHostProps>((props) => {
                     return row.getIsSelected() ? "selected" : undefined;
                   }}
                 >
-                  <For each={() => row.getVisibleCells()}>
+                  <For
+                    each={() => {
+                      revision.value;
+                      return row.getVisibleCells();
+                    }}
+                  >
                     {(cell) => (
-                      <TableCell>
+                      <TableCell data-column-id={cell.column.id}>
                         <DataTableFlexRender cell={cell} />
                       </TableCell>
                     )}

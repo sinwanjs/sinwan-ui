@@ -301,8 +301,6 @@ import {
   SelectGroup,
   SelectItem,
   SelectLabel,
-  SelectScrollDownButton,
-  SelectScrollUpButton,
   SelectSeparator,
   SelectTrigger,
   SelectValue,
@@ -603,14 +601,12 @@ describe("components smoke — controls", () => {
             <SelectValue placeholder="Pick" />
           </SelectTrigger>
           <SelectContent>
-            <SelectScrollUpButton />
             <SelectGroup>
               <SelectLabel>Group</SelectLabel>
               <SelectItem value="a">A</SelectItem>
               <SelectItem value="b">B</SelectItem>
               <SelectSeparator />
             </SelectGroup>
-            <SelectScrollDownButton />
           </SelectContent>
         </Select>
         <Calendar month={new Date(2024, 5, 1)} selected={new Date(2024, 5, 15)} locale="en-US" />
