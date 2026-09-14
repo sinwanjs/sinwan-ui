@@ -18,12 +18,8 @@ import {
   useCarousel,
 } from "../src/components/ui/carousel";
 import {
-  ChartBar,
+  Chart,
   ChartContainer,
-  ChartLegendContent,
-  ChartLine,
-  ChartPie,
-  ChartTooltipContent,
 } from "../src/components/ui/chart";
 import {
   Combobox,
@@ -152,6 +148,7 @@ import {
   TooltipRoot,
   TooltipTrigger,
 } from "../src/primitives/overlay";
+import { ScrollArea, ScrollBar } from "../src/components/ui/scroll-area";
 import { ThemeProvider, useTheme } from "../src/theme/theme-provider";
 import { toast, Toaster } from "../src/toast";
 import { asVNode, lastIntersectionObserver, lastMutationObserver, lastResizeObserver, mountUi, setMatchMediaPrefersDark, setupDom, teardownDom, triggerMatchMediaChange, withSetup } from "./helpers";
@@ -335,6 +332,122 @@ describe("coverage-100 — message scroller observers", () => {
       .forEach((btn) =>
         btn.dispatchEvent(new MouseEvent("click", { bubbles: true })),
       );
+
+    unmount();
+  });
+
+  test("jump buttons center and follow top/bottom edges", async () => {
+    let api: ReturnType<typeof useMessageScroller> | undefined;
+    const { root, unmount } = mountUi(() => (
+      <MessageScrollerProvider initialStickToBottom={false}>
+        {(() => {
+          const Probe = cc(() => {
+            api = useMessageScroller();
+            return null;
+          });
+          return (
+            <>
+              <Probe />
+              <MessageScroller>
+                <MessageScrollerViewport>
+                  <MessageScrollerContent>
+                    <MessageScrollerItem>a</MessageScrollerItem>
+                    <MessageScrollerItem>b</MessageScrollerItem>
+                  </MessageScrollerContent>
+                </MessageScrollerViewport>
+                <MessageScrollerButton direction="end" />
+                <MessageScrollerButton direction="start" />
+              </MessageScroller>
+            </>
+          );
+        })()}
+      </MessageScrollerProvider>
+    ));
+    await new Promise((r) => setTimeout(r, 0));
+
+    const buttons = [
+      ...root.querySelectorAll('[data-slot="message-scroller-button"]'),
+    ] as HTMLElement[];
+    const endBtn = buttons.find(
+      (btn) => btn.getAttribute("data-direction") === "end",
+    );
+    const startBtn = buttons.find(
+      (btn) => btn.getAttribute("data-direction") === "start",
+    );
+    expect(endBtn).toBeTruthy();
+    expect(startBtn).toBeTruthy();
+    expect(endBtn!.className).toContain("left-1/2");
+    expect(endBtn!.className).toContain("-translate-x-1/2");
+    expect(endBtn!.className).not.toContain("inset-s-1/2");
+
+    const viewport = root.querySelector(
+      '[data-slot="message-scroller-viewport"]',
+    ) as HTMLElement;
+    const stubMetrics = (scrollTop: number, scrollHeight = 800) => {
+      Object.defineProperty(viewport, "scrollHeight", {
+        value: scrollHeight,
+        configurable: true,
+      });
+      Object.defineProperty(viewport, "clientHeight", {
+        value: 100,
+        configurable: true,
+      });
+      Object.defineProperty(viewport, "scrollTop", {
+        value: scrollTop,
+        writable: true,
+        configurable: true,
+      });
+    };
+    viewport.scrollTo = ((opts?: ScrollToOptions) => {
+      Object.defineProperty(viewport, "scrollTop", {
+        value: opts?.top ?? 0,
+        writable: true,
+        configurable: true,
+      });
+    }) as typeof viewport.scrollTo;
+
+    stubMetrics(0, 100);
+    viewport.dispatchEvent(new Event("scroll", { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(endBtn!.getAttribute("data-active")).toBe("false");
+    expect(startBtn!.getAttribute("data-active")).toBe("false");
+
+    stubMetrics(0);
+    viewport.dispatchEvent(new Event("scroll", { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(api!.atTop.value).toBe(true);
+    expect(api!.atBottom.value).toBe(false);
+    expect(endBtn!.getAttribute("data-active")).toBe("true");
+    expect(startBtn!.getAttribute("data-active")).toBe("false");
+    expect(startBtn!.getAttribute("aria-hidden")).toBe("true");
+    expect(startBtn!.getAttribute("tabindex")).toBe("-1");
+
+    stubMetrics(300);
+    viewport.dispatchEvent(new Event("scroll", { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(api!.atTop.value).toBe(false);
+    expect(api!.atBottom.value).toBe(false);
+    expect(endBtn!.getAttribute("data-active")).toBe("true");
+    expect(startBtn!.getAttribute("data-active")).toBe("true");
+
+    stubMetrics(700);
+    viewport.dispatchEvent(new Event("scroll", { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(api!.atTop.value).toBe(false);
+    expect(api!.atBottom.value).toBe(true);
+    expect(endBtn!.getAttribute("data-active")).toBe("false");
+    expect(startBtn!.getAttribute("data-active")).toBe("true");
+
+    startBtn!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(viewport.scrollTop).toBe(0);
+    endBtn!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(viewport.scrollTop).toBe(viewport.scrollHeight);
+
+    api!.stickToBottom.value = false;
+    lastMutationObserver?.trigger([]);
+    api!.viewportEl.value = null;
+    lastMutationObserver?.trigger([]);
+    startBtn!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 
     unmount();
   });
@@ -597,60 +710,23 @@ describe("coverage-100 — chart combobox select carousel", () => {
           mapped: { label: "Mapped", color: "#0f0" },
           a: { label: "A", theme: { light: "#111", dark: "#eee" } },
         }}
-        initialDimension={{ width: 200, height: 120 }}
       >
-        <ChartTooltipContent
-          active
-          indicator="line"
-          payload={[
-            {
-              name: "sales",
-              dataKey: "sales",
-              value: 10,
-              payload: { sales: "mapped" },
-            },
-          ]}
-          label="sales"
-        />
-        <ChartTooltipContent
-          active
-          indicator="dashed"
-          payload={[
-            {
-              name: "x",
-              dataKey: "x",
-              value: "str",
-              payload: { x: "mapped" },
-            },
-          ]}
-          nameKey="x"
-          labelKey="x"
-        />
-        <ChartLegendContent
-          payload={[{ value: "sales", dataKey: "sales", color: "#f00" }]}
-        />
-        <ChartBar
-          data={[{ name: "a", sales: 1 }, { name: "b", sales: 2 }]}
-          dataKey="sales"
-          categoryKey="name"
-        />
-        <ChartLine
-          data={[{ name: "a", sales: 1 }, { name: "b", sales: 2 }]}
-          dataKey="sales"
-        />
-        <ChartPie
-          data={[
-            { key: "a", value: 30 },
-            { key: "sales", value: 70 },
-          ]}
-          innerRadius={20}
-        />
-        <ChartPie
-          data={[
-            { key: "a", value: 10 },
-            { key: "sales", value: 0 },
-          ]}
-          innerRadius={0}
+        <Chart
+          option={{
+            tooltip: { trigger: "item" },
+            series: [
+              {
+                type: "pie",
+                radius: ["20%", "70%"],
+                data: [
+                  { name: "a", value: 30 },
+                  { name: "sales", value: 70 },
+                ],
+              },
+            ],
+          }}
+          renderer="svg"
+          style={{ width: "200px", height: "120px" }}
         />
       </ChartContainer>
     ));
@@ -733,7 +809,7 @@ describe("coverage-100 — chart combobox select carousel", () => {
   test("carousel loop vertical and useCarousel throw", () => {
     expect(() => withSetup(() => useCarousel())).toThrow(/Carousel/);
     let api: ReturnType<typeof useCarousel> | undefined;
-    const { click, unmount } = mountUi(() => (
+    const { root, click, unmount } = mountUi(() => (
       <Carousel
         orientation="vertical"
         opts={{ loop: true, startIndex: 0 }}
@@ -753,6 +829,33 @@ describe("coverage-100 — chart combobox select carousel", () => {
     click('[data-slot="carousel-next"]');
     api?.scrollTo(5);
     api?.scrollTo(-1);
+    const viewport = root.querySelector(
+      '[data-slot="carousel-content"]',
+    ) as HTMLElement;
+    viewport.dispatchEvent(
+      new MouseEvent("pointerdown", {
+        bubbles: true,
+        cancelable: true,
+        clientX: 20,
+        clientY: 120,
+      }),
+    );
+    window.dispatchEvent(
+      new MouseEvent("pointermove", {
+        bubbles: true,
+        cancelable: true,
+        clientX: 24,
+        clientY: 40,
+      }),
+    );
+    window.dispatchEvent(
+      new MouseEvent("pointerup", {
+        bubbles: true,
+        cancelable: true,
+        clientX: 24,
+        clientY: 40,
+      }),
+    );
     unmount();
 
     const empty = mountUi(() => (
@@ -903,6 +1006,21 @@ describe("coverage-100 — remaining ui edges", () => {
   });
 
   test("resizable vertical handle drag", () => {
+    const stubRect = (el: HTMLElement, width: number, height: number) => {
+      el.getBoundingClientRect = () =>
+        ({
+          width,
+          height,
+          top: 0,
+          left: 0,
+          bottom: height,
+          right: width,
+          x: 0,
+          y: 0,
+          toJSON: () => ({}),
+        }) as DOMRect;
+    };
+
     const { root, unmount } = mountUi(() => (
       <ResizablePanelGroup orientation="vertical">
         <ResizablePanel defaultSize={40}>A</ResizablePanel>
@@ -913,6 +1031,16 @@ describe("coverage-100 — remaining ui edges", () => {
     const handle = root.querySelector(
       '[data-slot="resizable-handle"]',
     ) as HTMLElement;
+    const group = handle.parentElement!;
+    stubRect(group, 100, 200);
+    handle.dispatchEvent(
+      new MouseEvent("pointerdown", {
+        bubbles: true,
+        clientX: 10,
+        clientY: 40,
+      }),
+    );
+    expect(document.body.style.cursor).toBe("row-resize");
     handle.dispatchEvent(
       new MouseEvent("pointerdown", {
         bubbles: true,
@@ -930,7 +1058,164 @@ describe("coverage-100 — remaining ui edges", () => {
     window.dispatchEvent(
       new MouseEvent("pointerup", { bubbles: true, clientX: 10, clientY: 80 }),
     );
+    expect(document.body.style.cursor).toBe("");
     unmount();
+
+    const zero = mountUi(() => (
+      <ResizablePanelGroup orientation="horizontal">
+        <ResizablePanel defaultSize={50}>A</ResizablePanel>
+        <ResizableHandle />
+        <ResizablePanel defaultSize={50}>B</ResizablePanel>
+      </ResizablePanelGroup>
+    ));
+    const zeroHandle = zero.root.querySelector(
+      '[data-slot="resizable-handle"]',
+    ) as HTMLElement;
+    stubRect(zeroHandle.parentElement as HTMLElement, 0, 0);
+    zeroHandle.dispatchEvent(
+      new MouseEvent("pointerdown", { bubbles: true, clientX: 0, clientY: 0 }),
+    );
+    window.dispatchEvent(
+      new MouseEvent("pointermove", { bubbles: true, clientX: 20, clientY: 0 }),
+    );
+    window.dispatchEvent(new MouseEvent("pointerup", { bubbles: true }));
+    zero.unmount();
+
+    const clamped = mountUi(() => (
+      <ResizablePanelGroup orientation="horizontal">
+        <ResizablePanel defaultSize={10} minSize={10}>
+          A
+        </ResizablePanel>
+        <ResizableHandle />
+        <ResizablePanel defaultSize={90} minSize={10}>
+          B
+        </ResizablePanel>
+      </ResizablePanelGroup>
+    ));
+    const clampedHandle = clamped.root.querySelector(
+      '[data-slot="resizable-handle"]',
+    ) as HTMLElement;
+    stubRect(clampedHandle.parentElement as HTMLElement, 200, 100);
+    clampedHandle.dispatchEvent(
+      new MouseEvent("pointerdown", {
+        bubbles: true,
+        clientX: 20,
+        clientY: 0,
+      }),
+    );
+    window.dispatchEvent(
+      new MouseEvent("pointermove", { bubbles: true, clientX: 0, clientY: 0 }),
+    );
+    window.dispatchEvent(new MouseEvent("pointerup", { bubbles: true }));
+    clamped.unmount();
+
+    const orphan = mountUi(() => (
+      <ResizablePanelGroup orientation="horizontal">
+        <ResizablePanel defaultSize={100}>A</ResizablePanel>
+        <ResizableHandle />
+      </ResizablePanelGroup>
+    ));
+    const orphanHandle = orphan.root.querySelector(
+      '[data-slot="resizable-handle"]',
+    ) as HTMLElement;
+    stubRect(orphanHandle.parentElement as HTMLElement, 200, 100);
+    orphanHandle.dispatchEvent(
+      new MouseEvent("pointerdown", {
+        bubbles: true,
+        clientX: 100,
+        clientY: 0,
+      }),
+    );
+    window.dispatchEvent(
+      new MouseEvent("pointermove", {
+        bubbles: true,
+        clientX: 140,
+        clientY: 0,
+      }),
+    );
+    window.dispatchEvent(new MouseEvent("pointerup", { bubbles: true }));
+    orphan.unmount();
+
+    const emptyGroup = mountUi(() => (
+      <ResizablePanelGroup orientation="horizontal">
+        <ResizableHandle />
+      </ResizablePanelGroup>
+    ));
+    const emptyHandle = emptyGroup.root.querySelector(
+      '[data-slot="resizable-handle"]',
+    ) as HTMLElement;
+    stubRect(emptyHandle.parentElement as HTMLElement, 200, 100);
+    emptyHandle.dispatchEvent(
+      new MouseEvent("pointerdown", {
+        bubbles: true,
+        clientX: 100,
+        clientY: 0,
+      }),
+    );
+    window.dispatchEvent(
+      new MouseEvent("pointermove", {
+        bubbles: true,
+        clientX: 140,
+        clientY: 0,
+      }),
+    );
+    window.dispatchEvent(new MouseEvent("pointerup", { bubbles: true }));
+    emptyGroup.unmount();
+
+    const missing = mountUi(() => (
+      <ResizablePanelGroup orientation="horizontal">
+        <ResizablePanel defaultSize={50}>A</ResizablePanel>
+        <ResizableHandle />
+        <ResizablePanel defaultSize={50}>B</ResizablePanel>
+      </ResizablePanelGroup>
+    ));
+    const missingHandle = missing.root.querySelector(
+      '[data-slot="resizable-handle"]',
+    ) as HTMLElement;
+    Object.defineProperty(missingHandle, "parentElement", {
+      configurable: true,
+      get: () => null,
+    });
+    missingHandle.dispatchEvent(
+      new MouseEvent("pointerdown", {
+        bubbles: true,
+        clientX: 10,
+        clientY: 0,
+      }),
+    );
+    Object.defineProperty(missingHandle, "parentElement", {
+      configurable: true,
+      get: () => document.createElement("div"),
+    });
+    missingHandle.dispatchEvent(
+      new MouseEvent("pointerdown", {
+        bubbles: true,
+        clientX: 10,
+        clientY: 0,
+      }),
+    );
+    const dragging = mountUi(() => (
+      <ResizablePanelGroup orientation="horizontal">
+        <ResizablePanel defaultSize={40}>A</ResizablePanel>
+        <ResizableHandle />
+        <ResizablePanel defaultSize={60}>B</ResizablePanel>
+      </ResizablePanelGroup>
+    ));
+    const dragHandle = dragging.root.querySelector(
+      '[data-slot="resizable-handle"]',
+    ) as HTMLElement;
+    stubRect(dragHandle.parentElement as HTMLElement, 200, 100);
+    dragHandle.dispatchEvent(
+      new MouseEvent("pointerdown", {
+        bubbles: true,
+        clientX: 80,
+        clientY: 0,
+      }),
+    );
+    expect(document.body.style.cursor).toBe("col-resize");
+    dragging.unmount();
+    expect(document.body.style.cursor).toBe("");
+    missing.unmount();
   });
 });
 
@@ -966,20 +1251,14 @@ describe("coverage-100 — residual gaps", () => {
 
     const chart = mountUi(() => (
       <ChartContainer config={{ mapped: { label: "M", color: "#123" } }}>
-        <ChartTooltipContent
-          active
-          payload={[
-            {
-              name: "x",
-              dataKey: "x",
-              value: 1,
-              payload: { x: "mapped" },
-            },
-          ]}
-          nameKey="x"
-        />
-        <ChartLegendContent
-          payload={[{ value: "mapped", dataKey: "value", color: "#123" }]}
+        <Chart
+          option={{
+            xAxis: { type: "category", data: ["x"] },
+            yAxis: { type: "value" },
+            series: [{ type: "bar", data: [1] }],
+          }}
+          renderer="svg"
+          style={{ width: "160px", height: "80px" }}
         />
       </ChartContainer>
     ));
@@ -1722,7 +2001,9 @@ describe("coverage-100 — primitives theme icons toast", () => {
       <TooltipProvider delayDuration={0}>
         <TooltipRoot defaultOpen>
           <TooltipTrigger>t</TooltipTrigger>
-          <TooltipContent side="bottom">tip</TooltipContent>
+          <TooltipContent side="bottom" sideOffset={12}>
+            tip
+          </TooltipContent>
         </TooltipRoot>
       </TooltipProvider>
     ));
@@ -1821,5 +2102,211 @@ describe("coverage-100 — primitives theme icons toast", () => {
     const toaster = mountUi(() => <Toaster position="top-center" />);
     toast.dismiss();
     toaster.unmount();
+  });
+});
+
+describe("coverage-100 — scroll area overlay", () => {
+  function stubMetrics(
+    el: HTMLElement,
+    metrics: {
+      clientHeight?: number;
+      scrollHeight?: number;
+      scrollTop?: number;
+      clientWidth?: number;
+      scrollWidth?: number;
+      scrollLeft?: number;
+    },
+  ): void {
+    for (const [key, value] of Object.entries(metrics)) {
+      Object.defineProperty(el, key, {
+        value,
+        writable: true,
+        configurable: true,
+      });
+    }
+  }
+
+  function pointer(
+    type: string,
+    target: Element,
+    clientX: number,
+    clientY: number,
+  ): void {
+    target.dispatchEvent(
+      new MouseEvent(type, {
+        bubbles: true,
+        cancelable: true,
+        clientX,
+        clientY,
+      }),
+    );
+  }
+
+  test("tracks overflow, hover chrome, drag, and resize", async () => {
+    const { root, unmount } = mountUi(() => (
+      <ScrollArea class="h-40">
+        <div class="h-[800px] w-[800px]">long</div>
+        <ScrollBar orientation="vertical" />
+      </ScrollArea>
+    ));
+
+    const viewport = root.querySelector(
+      '[data-slot="scroll-area-viewport"]',
+    ) as HTMLElement;
+    const bars = [
+      ...root.querySelectorAll('[data-slot="scroll-area-scrollbar"]'),
+    ] as HTMLElement[];
+    const vertical = bars.find(
+      (bar) => bar.getAttribute("data-orientation") === "vertical",
+    )!;
+    const horizontal = bars.find(
+      (bar) => bar.getAttribute("data-orientation") === "horizontal",
+    )!;
+    expect(vertical).toBeTruthy();
+    expect(horizontal).toBeTruthy();
+    expect(vertical.getAttribute("data-overflow")).toBe("false");
+
+    stubMetrics(viewport, {
+      clientHeight: 0,
+      scrollHeight: 800,
+      scrollTop: 0,
+      clientWidth: 0,
+      scrollWidth: 800,
+      scrollLeft: 0,
+    });
+    viewport.dispatchEvent(new Event("scroll", { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(vertical.getAttribute("data-overflow")).toBe("false");
+
+    stubMetrics(viewport, {
+      clientHeight: 100,
+      scrollHeight: 800,
+      scrollTop: 0,
+      clientWidth: 100,
+      scrollWidth: 800,
+      scrollLeft: 0,
+    });
+    viewport.dispatchEvent(new Event("scroll", { bubbles: true }));
+    lastResizeObserver?.trigger([]);
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(vertical.getAttribute("data-overflow")).toBe("true");
+    expect(horizontal.getAttribute("data-overflow")).toBe("true");
+    expect(vertical.getAttribute("data-scrolling")).toBe("true");
+
+    stubMetrics(viewport, {
+      clientHeight: 100,
+      scrollHeight: 800,
+      scrollTop: 350,
+      clientWidth: 100,
+      scrollWidth: 800,
+      scrollLeft: 200,
+    });
+    viewport.dispatchEvent(new Event("scroll", { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 0));
+
+    const vThumb = vertical.querySelector(
+      '[data-slot="scroll-area-thumb"]',
+    ) as HTMLElement;
+    const hThumb = horizontal.querySelector(
+      '[data-slot="scroll-area-thumb"]',
+    ) as HTMLElement;
+    expect(vThumb.className).toContain("w-full");
+    expect(hThumb.className).toContain("h-full");
+    expect(vThumb.getAttribute("style") ?? vThumb.style.cssText).toContain(
+      "translateY",
+    );
+    expect(hThumb.getAttribute("style") ?? hThumb.style.cssText).toContain(
+      "translateX",
+    );
+
+    pointer("pointerdown", vThumb, 0, 10);
+    pointer("pointermove", vThumb, 0, 40);
+    pointer("pointerup", vThumb, 0, 40);
+    pointer("pointermove", vThumb, 0, 80);
+
+    stubMetrics(viewport, {
+      clientHeight: 100,
+      scrollHeight: 100,
+      scrollTop: 0,
+      clientWidth: 100,
+      scrollWidth: 100,
+      scrollLeft: 0,
+    });
+    pointer("pointerdown", vThumb, 0, 10);
+    pointer("pointermove", vThumb, 0, 40);
+    pointer("pointerup", vThumb, 0, 40);
+    pointer("pointerdown", hThumb, 10, 0);
+    pointer("pointermove", hThumb, 40, 0);
+    pointer("pointercancel", hThumb, 40, 0);
+
+    stubMetrics(viewport, {
+      clientHeight: 20,
+      scrollHeight: 40,
+      scrollTop: 0,
+      clientWidth: 20,
+      scrollWidth: 40,
+      scrollLeft: 0,
+    });
+    viewport.dispatchEvent(new Event("scroll", { bubbles: true }));
+    pointer("pointerdown", vThumb, 0, 2);
+    pointer("pointermove", vThumb, 0, 12);
+    pointer("pointerup", vThumb, 0, 12);
+
+    stubMetrics(viewport, {
+      clientHeight: 100,
+      scrollHeight: 100,
+      scrollTop: 0,
+      clientWidth: 100,
+      scrollWidth: 100,
+      scrollLeft: 0,
+    });
+    viewport.dispatchEvent(new Event("scroll", { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(vertical.getAttribute("data-overflow")).toBe("false");
+
+    Object.defineProperty(vThumb, "setPointerCapture", {
+      configurable: true,
+      value: undefined,
+    });
+    stubMetrics(viewport, {
+      clientHeight: 100,
+      scrollHeight: 800,
+      scrollTop: 0,
+      clientWidth: 100,
+      scrollWidth: 800,
+      scrollLeft: 0,
+    });
+    viewport.dispatchEvent(new Event("scroll", { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 0));
+    pointer("pointerdown", vThumb, 0, 8);
+    viewport.remove();
+    pointer("pointermove", vThumb, 0, 30);
+    pointer("pointerup", vThumb, 0, 30);
+
+    await new Promise((r) => setTimeout(r, 720));
+    expect(vertical.getAttribute("data-scrolling")).toBe("false");
+    unmount();
+  });
+
+  test("standalone bar and missing resize observer stay inert", async () => {
+    const original = globalThis.ResizeObserver;
+    const { unmount: unmountBar } = mountUi(() => <ScrollBar />);
+    unmountBar();
+
+    const { unmount: emptyUnmount } = mountUi(() => <ScrollArea />);
+    emptyUnmount();
+
+    Reflect.deleteProperty(globalThis, "ResizeObserver");
+    const { root, unmount } = mountUi(() => (
+      <ScrollArea>
+        <p>short</p>
+      </ScrollArea>
+    ));
+    expect(
+      root.querySelector('[data-slot="scroll-area-viewport"]'),
+    ).toBeTruthy();
+    unmount();
+    globalThis.ResizeObserver = original;
   });
 });

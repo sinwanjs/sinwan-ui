@@ -3,10 +3,17 @@ import { signal, type Signal } from "sinwan/reactivity";
 import { Check, ChevronRight } from "lucide";
 
 import { Icon } from "../../icons";
+import { createLiveState, type Live } from "../../lib/live-state";
 import { Slot } from "../../lib/slot";
 import { cn } from "../../lib/utils";
-import { UiPortal, usePointPosition } from "../../primitives";
+import { Presence, UiPortal, usePointPosition } from "../../primitives";
 import { isDismissExemptPointerTarget } from "../../primitives/dismiss";
+import {
+  createMenuSubApi,
+  isInsideMenuSubContent,
+  MenuSubContentLayer,
+  type MenuSubApi,
+} from "../../primitives/menu-sub";
 
 type ContextMenuApi = {
   open: Signal<boolean>;
@@ -18,12 +25,7 @@ const ContextMenuKey: InjectionKey<ContextMenuApi> = Symbol(
   "sinwan-ui.context-menu",
 );
 
-type SubApi = {
-  open: Signal<boolean>;
-  setOpen: (value: boolean) => void;
-};
-
-const ContextSubKey: InjectionKey<SubApi> = Symbol("sinwan-ui.context-sub");
+const ContextSubKey: InjectionKey<MenuSubApi> = Symbol("sinwan-ui.context-sub");
 
 type ContextMenuProps = {
   children?: SinwanNode;
@@ -113,12 +115,15 @@ function ContextMenuContent({
 }: ContextMenuContentProps) {
   const api = inject(ContextMenuKey)!;
   const contentEl = signal<HTMLElement | null>(null);
-  const { style, present, side } = usePointPosition({
+  const { style, side } = usePointPosition({
     open: () => api.open.value,
     point: () => api.point.value,
     content: () => contentEl.value,
     fallbackSize: { width: 180, height: 200 },
   });
+  function contextState() {
+    return api.open.value ? "open" : "closed";
+  }
 
   onMounted(() => {
     function onDoc(e: MouseEvent) {
@@ -138,15 +143,18 @@ function ContextMenuContent({
   });
 
   return (
-    <Show when={() => present.value} fallback={null}>
+    <Presence
+      // @ts-expect-error live open getter
+      present={() => api.open.value}
+    >
       <UiPortal>
         <div
           data-slot="context-menu-content"
-          data-open=""
+          data-state={contextState}
           data-side={() => side.value}
           role="menu"
           class={cn(
-            "z-50 max-h-96 min-w-36 overflow-x-hidden overflow-y-auto rounded-lg bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10 duration-100 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+            "z-50 max-h-96 min-w-36 overflow-x-hidden overflow-y-auto rounded-lg bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10 duration-200 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 data-closed:!fill-mode-forwards",
             className,
           )}
           style={() => style.value as unknown as string}
@@ -157,7 +165,7 @@ function ContextMenuContent({
           {children}
         </div>
       </UiPortal>
-    </Show>
+    </Presence>
   );
 }
 
@@ -193,7 +201,10 @@ function ContextMenuItem({
       )}
       onclick={(e: MouseEvent) => {
         onclick?.(e);
-        if (!e.defaultPrevented) api.setOpen(false);
+        if (e.defaultPrevented || isInsideMenuSubContent(e.currentTarget)) {
+          return;
+        }
+        api.setOpen(false);
       }}
     >
       {children}
@@ -210,42 +221,39 @@ type ContextMenuCheckboxItemProps = {
   onCheckedChange?: (checked: boolean) => void;
 };
 
-function ContextMenuCheckboxItem({
-  class: className,
-  children,
-  checked = false,
-  inset,
-  disabled,
-  onCheckedChange,
-}: ContextMenuCheckboxItemProps) {
+const ContextMenuCheckboxItem = cc<ContextMenuCheckboxItemProps>((props) => {
   return (
     <button
       type="button"
       role="menuitemcheckbox"
-      aria-checked={checked}
+      aria-checked={() => (props.checked ? "true" : "false")}
       data-slot="context-menu-checkbox-item"
-      data-inset={inset ? "" : undefined}
-      disabled={disabled}
+      data-inset={props.inset ? "" : undefined}
+      disabled={props.disabled}
       class={cn(
-        "relative flex w-full cursor-default items-center gap-1.5 rounded-md py-1 pr-8 pl-1.5 text-sm outline-hidden select-none focus:bg-accent focus:text-accent-foreground data-inset:pl-7 data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
-        className,
+        "relative flex w-full cursor-default items-center gap-1.5 rounded-md py-1 pe-8 ps-1.5 text-sm outline-hidden select-none focus:bg-accent focus:text-accent-foreground data-inset:ps-7 data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+        props.class,
       )}
       onclick={() => {
-        onCheckedChange?.(!checked);
+        if (props.disabled) return;
+        props.onCheckedChange?.(!Boolean(props.checked));
       }}
     >
-      <span class="pointer-events-none absolute right-2 flex items-center justify-center">
-        <Show when={() => checked} fallback={null}>
+      <span
+        class="pointer-events-none absolute end-2 flex items-center justify-center"
+        data-slot="context-menu-checkbox-item-indicator"
+      >
+        <Show when={() => Boolean(props.checked)} fallback={null}>
           <Icon icon={Check} />
         </Show>
       </span>
-      {children}
+      {props.children}
     </button>
   );
-}
+});
 
 type RadioGroupApi = {
-  value: Signal<string>;
+  value: Live<string>;
   setValue: (value: string) => void;
 };
 
@@ -260,24 +268,25 @@ type ContextMenuRadioGroupProps = {
   onValueChange?: (value: string) => void;
 };
 
-const ContextMenuRadioGroup = cc<ContextMenuRadioGroupProps>(
-  ({ children, value: valueProp, defaultValue = "", onValueChange }) => {
-    const value = signal(valueProp ?? defaultValue);
-    if (valueProp !== undefined) value.value = valueProp;
-    provide(ContextRadioKey, {
-      value,
-      setValue: (v: string) => {
-        value.value = v;
-        onValueChange?.(v);
-      },
-    });
-    return (
-      <div data-slot="context-menu-radio-group" role="group">
-        {children}
-      </div>
-    );
-  },
-);
+const ContextMenuRadioGroup = cc<ContextMenuRadioGroupProps>((props) => {
+  const { state: value, set } = createLiveState(
+    "value" in props,
+    props.defaultValue ?? "",
+    () => props.value ?? "",
+  );
+  provide(ContextRadioKey, {
+    value,
+    setValue: (v: string) => {
+      set(v);
+      props.onValueChange?.(v);
+    },
+  });
+  return (
+    <div data-slot="context-menu-radio-group" role="group">
+      {props.children}
+    </div>
+  );
+});
 
 type ContextMenuRadioItemProps = {
   children?: SinwanNode;
@@ -287,40 +296,38 @@ type ContextMenuRadioItemProps = {
   disabled?: boolean;
 };
 
-function ContextMenuRadioItem({
-  class: className,
-  children,
-  value,
-  inset,
-  disabled,
-}: ContextMenuRadioItemProps) {
+const ContextMenuRadioItem = cc<ContextMenuRadioItemProps>((props) => {
   const radio = inject(ContextRadioKey)!;
-  const selected = () => radio.value.value === value;
+  const selected = () => radio.value.value === props.value;
   return (
     <button
       type="button"
       role="menuitemradio"
-      aria-checked={() => selected()}
+      aria-checked={() => (selected() ? "true" : "false")}
       data-slot="context-menu-radio-item"
-      data-inset={inset ? "" : undefined}
-      disabled={disabled}
+      data-inset={props.inset ? "" : undefined}
+      disabled={props.disabled}
       class={cn(
-        "relative flex w-full cursor-default items-center gap-1.5 rounded-md py-1 pr-8 pl-1.5 text-sm outline-hidden select-none focus:bg-accent focus:text-accent-foreground data-inset:pl-7 data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
-        className,
+        "relative flex w-full cursor-default items-center gap-1.5 rounded-md py-1 pe-8 ps-1.5 text-sm outline-hidden select-none focus:bg-accent focus:text-accent-foreground data-inset:ps-7 data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+        props.class,
       )}
       onclick={() => {
-        radio.setValue(value);
+        if (props.disabled) return;
+        radio.setValue(props.value);
       }}
     >
-      <span class="pointer-events-none absolute right-2 flex items-center justify-center">
+      <span
+        class="pointer-events-none absolute end-2 flex items-center justify-center"
+        data-slot="context-menu-radio-item-indicator"
+      >
         <Show when={() => selected()} fallback={null}>
           <Icon icon={Check} />
         </Show>
       </span>
-      {children}
+      {props.children}
     </button>
   );
-}
+});
 
 type ContextMenuLabelProps = {
   children?: SinwanNode;
@@ -384,21 +391,22 @@ function ContextMenuShortcut({
 
 type ContextMenuSubProps = {
   children?: SinwanNode;
+  open?: boolean;
+  defaultOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
 };
 
-const ContextMenuSub = cc<ContextMenuSubProps>(({ children }) => {
-  const open = signal(false);
-  provide(ContextSubKey, {
-    open,
-    setOpen: (v: boolean) => {
-      open.value = v;
-    },
-  });
-  return (
-    <div data-slot="context-menu-sub" class="relative">
-      {children}
-    </div>
+const ContextMenuSub = cc<ContextMenuSubProps>((props) => {
+  provide(
+    ContextSubKey,
+    createMenuSubApi({
+      controlled: "open" in props,
+      defaultOpen: props.defaultOpen,
+      readOpen: () => Boolean(props.open),
+      onOpenChange: props.onOpenChange,
+    }),
   );
+  return <div data-slot="context-menu-sub">{props.children}</div>;
 });
 
 type ContextMenuSubTriggerProps = {
@@ -413,12 +421,6 @@ function ContextMenuSubTrigger({
   children,
 }: ContextMenuSubTriggerProps) {
   const api = inject(ContextSubKey)!;
-  function openSub() {
-    api.setOpen(true);
-  }
-  function toggleSub() {
-    api.setOpen(!api.open.value);
-  }
   function openAttr() {
     return api.open.value ? "" : undefined;
   }
@@ -429,14 +431,21 @@ function ContextMenuSubTrigger({
       data-inset={inset ? "" : undefined}
       data-open={openAttr}
       class={cn(
-        "flex w-full cursor-default items-center gap-1.5 rounded-md px-1.5 py-1 text-sm outline-hidden select-none focus:bg-accent focus:text-accent-foreground data-inset:pl-7 data-open:bg-accent [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+        "flex w-full cursor-default items-center gap-1.5 rounded-md px-1.5 py-1 text-sm outline-hidden select-none focus:bg-accent focus:text-accent-foreground data-inset:ps-7 data-open:bg-accent data-open:text-accent-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
         className,
       )}
-      onmouseenter={openSub}
-      onclick={toggleSub}
+      onmouseenter={() => {
+        api.cancelClose();
+        api.setOpen(true);
+      }}
+      onmouseleave={() => api.requestClose()}
+      onclick={() => api.setOpen(!api.open.value)}
+      ref={(el: HTMLElement | null) => {
+        api.triggerEl.value = el;
+      }}
     >
       {children}
-      <Icon icon={ChevronRight} class="ml-auto" />
+      <Icon icon={ChevronRight} class="ms-auto rtl:rotate-180" />
     </button>
   );
 }
@@ -450,24 +459,14 @@ function ContextMenuSubContent({
   class: className,
   children,
 }: ContextMenuSubContentProps) {
-  const api = inject(ContextSubKey)!;
-  function closeSub() {
-    api.setOpen(false);
-  }
   return (
-    <Show when={() => api.open.value} fallback={null}>
-      <div
-        data-slot="context-menu-sub-content"
-        data-open=""
-        class={cn(
-          "absolute top-0 left-full z-50 ml-1 min-w-[96px] overflow-hidden rounded-lg bg-popover p-1 text-popover-foreground shadow-lg ring-1 ring-foreground/10",
-          className,
-        )}
-        onmouseleave={closeSub}
-      >
-        {children}
-      </div>
-    </Show>
+    <MenuSubContentLayer
+      api={inject(ContextSubKey)!}
+      slot="context-menu-sub-content"
+      class={className}
+    >
+      {children}
+    </MenuSubContentLayer>
   );
 }
 

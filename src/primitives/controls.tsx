@@ -2,6 +2,7 @@ import { cc, inject, provide, type InjectionKey, type SinwanNode } from "sinwan/
 import { For, Show } from "sinwan/component";
 import { createLiveState, type Live } from "../lib/live-state";
 import { Slot } from "../lib/slot";
+import { Presence } from "./core";
 
 function toValueList(v: string | string[] | undefined): string[] {
   if (v == null) return [];
@@ -194,7 +195,9 @@ export const AccordionTrigger = cc<{
     <button
       type="button"
       data-slot="accordion-trigger"
-      aria-expanded={() => root.value.value.includes(item.value)}
+      aria-expanded={() =>
+        root.value.value.includes(item.value) ? "true" : "false"
+      }
       class={className}
       onclick={() => root.toggle(item.value)}
     >
@@ -209,12 +212,38 @@ export const AccordionContent = cc<{
 }>(({ children, class: className }) => {
   const root = inject(AccordionKey)!;
   const item = inject(AccordionItemKey)!;
+  function open() {
+    return root.value.value.includes(item.value);
+  }
+  function stateAttr() {
+    return open() ? "open" : "closed";
+  }
+  function bindContent(el: HTMLElement | null) {
+    if (el == null) return;
+    const node = el;
+    function measure() {
+      const inner = node.firstElementChild;
+      const height =
+        inner instanceof HTMLElement ? inner.scrollHeight : node.scrollHeight;
+      node.style.setProperty("--radix-accordion-content-height", `${height}px`);
+    }
+    measure();
+    requestAnimationFrame(measure);
+  }
   return (
-    <Show when={() => root.value.value.includes(item.value)}>
-      <div data-slot="accordion-content" class={className}>
+    <Presence
+      // @ts-expect-error live open getter
+      present={() => open()}
+    >
+      <div
+        data-slot="accordion-content"
+        data-state={stateAttr}
+        class={className}
+        ref={bindContent}
+      >
         {children}
       </div>
-    </Show>
+    </Presence>
   );
 });
 

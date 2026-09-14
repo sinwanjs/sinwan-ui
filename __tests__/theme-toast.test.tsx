@@ -61,14 +61,30 @@ describe("ThemeProvider", () => {
       api = useTheme();
       return <ThemeToggle />;
     };
-    const { click, unmount } = mountUi(() => (
+    const { click, root, unmount } = mountUi(() => (
       <ThemeProvider defaultTheme="light">
         <Capture />
       </ThemeProvider>
     ));
     expect(api!.theme.value).toBe("light");
+    expect(root.textContent).toContain("Dark");
     click('[data-slot="theme-toggle"]');
     expect(api!.theme.value).toBe("dark");
+    unmount();
+  });
+
+  test("ThemeToggle renders custom children", () => {
+    const { root, unmount } = mountUi(() => (
+      <ThemeProvider defaultTheme="light">
+        <ThemeToggle>
+          <span>sun</span>
+          <span>moon</span>
+        </ThemeToggle>
+      </ThemeProvider>
+    ));
+    expect(root.textContent).toContain("sun");
+    expect(root.textContent).toContain("moon");
+    expect(root.textContent).not.toContain("Dark");
     unmount();
   });
 

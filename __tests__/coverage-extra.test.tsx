@@ -5,9 +5,9 @@ import {
   AvatarImage,
 } from "../src/components/ui/avatar";
 import {
+  Chart,
   ChartContainer,
-  ChartLegendContent,
-  ChartTooltipContent,
+  ChartStyle,
   useChart,
 } from "../src/components/ui/chart";
 import {
@@ -99,6 +99,7 @@ import {
   SidebarGroupLabel,
   SidebarMenuButton,
   SidebarProvider,
+  SidebarTrigger,
   useSidebar,
 } from "../src/components/ui/sidebar";
 import { Slider } from "../src/components/ui/slider";
@@ -653,6 +654,34 @@ describe("coverage extras — sidebar chart message theme", () => {
     expect(() => withSetup(() => useSidebar())).toThrow(/SidebarProvider/);
   });
 
+  test("nested SidebarProvider skips the keyboard shortcut", () => {
+    let outer = true;
+    let inner = true;
+    const { unmount } = mountUi(() => (
+      <SidebarProvider
+        open={outer}
+        onOpenChange={(next) => {
+          outer = next;
+        }}
+      >
+        <SidebarProvider
+          open={inner}
+          onOpenChange={(next) => {
+            inner = next;
+          }}
+        >
+          <SidebarTrigger />
+        </SidebarProvider>
+      </SidebarProvider>
+    ));
+    window.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "b", metaKey: true, bubbles: true }),
+    );
+    expect(outer).toBe(false);
+    expect(inner).toBe(true);
+    unmount();
+  });
+
   test("chart helpers and message scroller hooks", () => {
     expect(() => withSetup(() => useChart())).toThrow(/ChartContainer/);
     const { root, unmount } = mountUi(() => (
@@ -662,19 +691,16 @@ describe("coverage extras — sidebar chart message theme", () => {
           b: { theme: { light: "#0f0", dark: "#00f" } },
         }}
       >
-        <ChartTooltipContent
-          active
-          indicator="dot"
-          hideIndicator
-          payload={[
-            { name: "a", dataKey: "a", value: 1, type: "none" },
-            { name: "missing", dataKey: "missing", value: 2 },
-          ]}
+        <Chart
+          option={{
+            xAxis: { type: "category", data: ["a"] },
+            yAxis: { type: "value" },
+            series: [{ type: "bar", data: [1] }],
+          }}
+          renderer="svg"
+          style={{ width: "200px", height: "120px" }}
         />
-        <ChartLegendContent
-          payload={[{ value: "a", dataKey: "a", color: "#f00" }]}
-          verticalAlign="top"
-        />
+        <ChartStyle id="extra-empty" config={{}} />
       </ChartContainer>
     ));
     expect(root.querySelector('[data-slot="chart"]')).toBeTruthy();

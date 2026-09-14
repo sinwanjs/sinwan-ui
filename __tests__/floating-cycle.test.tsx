@@ -19,6 +19,12 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "../src/components/ui/sheet";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../src/components/ui/dropdown-menu";
 import { Button } from "../src/components/ui/button";
 import { mountUi, setupDom, teardownDom } from "./helpers";
 
@@ -182,6 +188,35 @@ describe("floating open/close cycles", () => {
     expect(ui.query('[data-slot="dialog-overlay"]')).toBeNull();
     ui.unmount();
   });
+
+  test("dropdown menu dismiss keeps closed fill-mode classes until unmount", async () => {
+    let open = false;
+    const ui = mountUi(() => (
+      <DropdownMenu onOpenChange={(v) => { open = v; }}>
+        <DropdownMenuTrigger>Menu</DropdownMenuTrigger>
+        <DropdownMenuContent>
+          <DropdownMenuItem>One</DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    ));
+    ui.click('[data-slot="dropdown-menu-trigger"]');
+    await wait();
+    expect(open).toBe(true);
+    const panel = ui.query('[data-slot="dropdown-menu-content"]') as HTMLElement;
+    expect(panel.className).toContain("duration-200");
+    expect(panel.className).toContain("!fill-mode-forwards");
+    document.body.dispatchEvent(
+      new MouseEvent("pointerdown", { bubbles: true }),
+    );
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(open).toBe(false);
+    expect(ui.query('[data-slot="dropdown-menu-content"]')).toBe(panel);
+    expect(panel.getAttribute("data-state")).toBe("closed");
+    await wait(250);
+    expect(ui.query('[data-slot="dropdown-menu-content"]')).toBeNull();
+    ui.unmount();
+  });
 });
 
 describe("overlay exit CSS", () => {
@@ -194,5 +229,8 @@ describe("overlay exit CSS", () => {
     expect(css).toContain('[data-slot="dialog-overlay"]');
     expect(css).toContain('[data-slot="sheet-content"]');
     expect(css).toContain('[data-slot="popover-content"]');
+    expect(css).toContain('[data-slot="dropdown-menu-content"]');
+    expect(css).toContain('[data-slot="select-content"]');
+    expect(css).toContain('[data-slot="accordion-content"]');
   });
 });

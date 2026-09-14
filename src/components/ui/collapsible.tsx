@@ -1,4 +1,5 @@
 import type { SinwanNode } from "sinwan/component";
+import { cn } from "@/lib/utils";
 import {
   CollapsibleContent as CollapsibleContentPrimitive,
   CollapsibleRoot,
@@ -32,8 +33,15 @@ type CollapsibleContentProps = {
   class?: string;
 };
 
-function CollapsibleContent(props: CollapsibleContentProps) {
-  return <CollapsibleContentPrimitive {...props} />;
+function CollapsibleContent({
+  class: className,
+  children,
+}: CollapsibleContentProps) {
+  return (
+    <CollapsibleContentPrimitive class="overflow-hidden duration-200 data-open:animate-collapsible-down data-closed:animate-collapsible-up data-closed:!fill-mode-forwards">
+      <div class={cn(className)}>{children}</div>
+    </CollapsibleContentPrimitive>
+  );
 }
 
 export { Collapsible, CollapsibleContent, CollapsibleTrigger };

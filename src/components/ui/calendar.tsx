@@ -400,12 +400,15 @@ export const Calendar = cc<CalendarProps>((props) => {
       )}
     >
       <div class="relative flex w-full flex-col gap-4 md:flex-row">
-        <div class="absolute inset-x-0 top-0 z-20 flex w-full items-center justify-between gap-1">
+        <div
+          data-slot="calendar-nav"
+          class="pointer-events-none absolute inset-x-0 top-0 z-20 flex w-full items-center justify-between gap-1"
+        >
           <Button
             type="button"
             variant={props.buttonVariant ?? "ghost"}
             size="icon"
-            class="size-(--cell-size) p-0 select-none aria-disabled:opacity-50"
+            class="pointer-events-auto size-(--cell-size) p-0 select-none aria-disabled:opacity-50"
             aria-label="Previous month"
             onclick={() => {
               setMonth(addCalendarMonths(viewMonth.value, -1, calendar()));
@@ -417,7 +420,7 @@ export const Calendar = cc<CalendarProps>((props) => {
             type="button"
             variant={props.buttonVariant ?? "ghost"}
             size="icon"
-            class="size-(--cell-size) p-0 select-none aria-disabled:opacity-50"
+            class="pointer-events-auto size-(--cell-size) p-0 select-none aria-disabled:opacity-50"
             aria-label="Next month"
             onclick={() => {
               setMonth(addCalendarMonths(viewMonth.value, 1, calendar()));

@@ -166,27 +166,29 @@ export function useTheme(): ThemeApi {
   return api;
 }
 
-export const ThemeToggle = cc<{ class?: string }>(({ class: className }) => {
-  const { theme, resolved, setTheme } = useTheme();
-  return (
-    <button
-      type="button"
-      class={className}
-      data-slot="theme-toggle"
-      aria-label="Toggle color theme"
-      onclick={() => {
-        const next =
-          theme.value === "system"
-            ? resolved.value === "dark"
-              ? "light"
-              : "dark"
-            : theme.value === "dark"
-              ? "light"
-              : "dark";
-        setTheme(next);
-      }}
-    >
-      {() => (resolved.value === "dark" ? "Light" : "Dark")}
-    </button>
-  );
-});
+export const ThemeToggle = cc<{ class?: string; children?: SinwanNode }>(
+  ({ class: className, children }) => {
+    const { theme, resolved, setTheme } = useTheme();
+    return (
+      <button
+        type="button"
+        class={className}
+        data-slot="theme-toggle"
+        aria-label="Toggle color theme"
+        onclick={() => {
+          const next =
+            theme.value === "system"
+              ? resolved.value === "dark"
+                ? "light"
+                : "dark"
+              : theme.value === "dark"
+                ? "light"
+                : "dark";
+          setTheme(next);
+        }}
+      >
+        {children ?? (() => (resolved.value === "dark" ? "Light" : "Dark"))}
+      </button>
+    );
+  },
+);

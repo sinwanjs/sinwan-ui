@@ -113,7 +113,10 @@ export const SidebarProvider = cc<SidebarProviderProps>(
       }
     };
 
+    const parentSidebar = inject<SidebarApi | undefined>(SidebarKey, undefined);
+
     onMounted(() => {
+      if (parentSidebar) return;
       const handleKeyDown = (event: KeyboardEvent) => {
         if (
           event.key === SIDEBAR_KEYBOARD_SHORTCUT &&

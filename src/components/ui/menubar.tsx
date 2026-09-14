@@ -3,9 +3,16 @@ import { signal, type Signal } from "sinwan/reactivity";
 import { Check, ChevronRight } from "lucide";
 
 import { Icon } from "../../icons";
+import { createLiveState, type Live } from "../../lib/live-state";
 import { cn } from "../../lib/utils";
-import { UiPortal, useAnchorPosition, type Align } from "../../primitives";
+import { Presence, UiPortal, useAnchorPosition, type Align } from "../../primitives";
 import { isDismissExemptPointerTarget } from "../../primitives/dismiss";
+import {
+  createMenuSubApi,
+  isInsideMenuSubContent,
+  MenuSubContentLayer,
+  type MenuSubApi,
+} from "../../primitives/menu-sub";
 
 type MenubarApi = {
   openMenu: Signal<string | null>;
@@ -23,12 +30,7 @@ type MenuApi = {
 
 const MenubarMenuKey: InjectionKey<MenuApi> = Symbol("sinwan-ui.menubar-menu");
 
-type SubApi = {
-  open: Signal<boolean>;
-  setOpen: (value: boolean) => void;
-};
-
-const MenubarSubKey: InjectionKey<SubApi> = Symbol("sinwan-ui.menubar-sub");
+const MenubarSubKey: InjectionKey<MenuSubApi> = Symbol("sinwan-ui.menubar-sub");
 
 type MenubarProps = {
   children?: SinwanNode;
@@ -101,7 +103,7 @@ function MenubarPortal({ children }: MenubarPortalProps) {
 }
 
 type RadioGroupApi = {
-  value: Signal<string>;
+  value: Live<string>;
   setValue: (value: string) => void;
 };
 
@@ -116,24 +118,25 @@ type MenubarRadioGroupProps = {
   onValueChange?: (value: string) => void;
 };
 
-const MenubarRadioGroup = cc<MenubarRadioGroupProps>(
-  ({ children, value: valueProp, defaultValue = "", onValueChange }) => {
-    const value = signal(valueProp ?? defaultValue);
-    if (valueProp !== undefined) value.value = valueProp;
-    provide(MenubarRadioKey, {
-      value,
-      setValue: (v: string) => {
-        value.value = v;
-        onValueChange?.(v);
-      },
-    });
-    return (
-      <div data-slot="menubar-radio-group" role="group">
-        {children}
-      </div>
-    );
-  },
-);
+const MenubarRadioGroup = cc<MenubarRadioGroupProps>((props) => {
+  const { state: value, set } = createLiveState(
+    "value" in props,
+    props.defaultValue ?? "",
+    () => props.value ?? "",
+  );
+  provide(MenubarRadioKey, {
+    value,
+    setValue: (v: string) => {
+      set(v);
+      props.onValueChange?.(v);
+    },
+  });
+  return (
+    <div data-slot="menubar-radio-group" role="group">
+      {props.children}
+    </div>
+  );
+});
 
 type MenubarTriggerProps = {
   children?: SinwanNode;
@@ -180,7 +183,7 @@ function MenubarContent({
 }: MenubarContentProps) {
   const menu = inject(MenubarMenuKey)!;
   const contentEl = signal<HTMLElement | null>(null);
-  const { style, present, side } = useAnchorPosition({
+  const { style, side } = useAnchorPosition({
     open: () => menu.open.value,
     trigger: () => menu.triggerEl.value,
     content: () => contentEl.value,
@@ -189,6 +192,9 @@ function MenubarContent({
     gap: sideOffset,
     fallbackSize: { width: 180, height: 200 },
   });
+  function menubarState() {
+    return menu.open.value ? "open" : "closed";
+  }
 
   onMounted(() => {
     function onDoc(e: MouseEvent) {
@@ -214,15 +220,18 @@ function MenubarContent({
   });
 
   return (
-    <Show when={() => present.value} fallback={null}>
+    <Presence
+      // @ts-expect-error live open getter
+      present={() => menu.open.value}
+    >
       <UiPortal>
         <div
           data-slot="menubar-content"
-          data-open=""
+          data-state={menubarState}
           data-side={() => side.value}
           role="menu"
           class={cn(
-            "z-50 min-w-36 overflow-hidden rounded-lg bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10 duration-100 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95",
+            "z-50 min-w-36 overflow-hidden rounded-lg bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10 duration-200 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 data-closed:!fill-mode-forwards",
             className,
           )}
           style={() => style.value as unknown as string}
@@ -233,7 +242,7 @@ function MenubarContent({
           {children}
         </div>
       </UiPortal>
-    </Show>
+    </Presence>
   );
 }
 
@@ -269,7 +278,10 @@ function MenubarItem({
       )}
       onclick={(e: MouseEvent) => {
         onclick?.(e);
-        if (!e.defaultPrevented) menu.setOpen(false);
+        if (e.defaultPrevented || isInsideMenuSubContent(e.currentTarget)) {
+          return;
+        }
+        menu.setOpen(false);
       }}
     >
       {children}
@@ -286,39 +298,33 @@ type MenubarCheckboxItemProps = {
   onCheckedChange?: (checked: boolean) => void;
 };
 
-function MenubarCheckboxItem({
-  class: className,
-  children,
-  checked = false,
-  inset,
-  disabled,
-  onCheckedChange,
-}: MenubarCheckboxItemProps) {
+const MenubarCheckboxItem = cc<MenubarCheckboxItemProps>((props) => {
   return (
     <button
       type="button"
       role="menuitemcheckbox"
-      aria-checked={checked}
+      aria-checked={() => (props.checked ? "true" : "false")}
       data-slot="menubar-checkbox-item"
-      data-inset={inset ? "" : undefined}
-      disabled={disabled}
+      data-inset={props.inset ? "" : undefined}
+      disabled={props.disabled}
       class={cn(
         "relative flex w-full cursor-default items-center gap-1.5 rounded-md py-1 pr-1.5 pl-7 text-sm outline-hidden select-none focus:bg-accent focus:text-accent-foreground data-inset:pl-7 data-disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0",
-        className,
+        props.class,
       )}
       onclick={() => {
-        onCheckedChange?.(!checked);
+        if (props.disabled) return;
+        props.onCheckedChange?.(!Boolean(props.checked));
       }}
     >
       <span class="pointer-events-none absolute left-1.5 flex size-4 items-center justify-center [&_svg:not([class*='size-'])]:size-4">
-        <Show when={() => checked} fallback={null}>
+        <Show when={() => Boolean(props.checked)} fallback={null}>
           <Icon icon={Check} />
         </Show>
       </span>
-      {children}
+      {props.children}
     </button>
   );
-}
+});
 
 type MenubarRadioItemProps = {
   children?: SinwanNode;
@@ -328,29 +334,24 @@ type MenubarRadioItemProps = {
   disabled?: boolean;
 };
 
-function MenubarRadioItem({
-  class: className,
-  children,
-  value,
-  inset,
-  disabled,
-}: MenubarRadioItemProps) {
+const MenubarRadioItem = cc<MenubarRadioItemProps>((props) => {
   const radio = inject(MenubarRadioKey)!;
-  const selected = () => radio.value.value === value;
+  const selected = () => radio.value.value === props.value;
   return (
     <button
       type="button"
       role="menuitemradio"
-      aria-checked={() => selected()}
+      aria-checked={() => (selected() ? "true" : "false")}
       data-slot="menubar-radio-item"
-      data-inset={inset ? "" : undefined}
-      disabled={disabled}
+      data-inset={props.inset ? "" : undefined}
+      disabled={props.disabled}
       class={cn(
         "relative flex w-full cursor-default items-center gap-1.5 rounded-md py-1 pr-1.5 pl-7 text-sm outline-hidden select-none focus:bg-accent focus:text-accent-foreground data-inset:pl-7 data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
-        className,
+        props.class,
       )}
       onclick={() => {
-        radio.setValue(value);
+        if (props.disabled) return;
+        radio.setValue(props.value);
       }}
     >
       <span class="pointer-events-none absolute left-1.5 flex size-4 items-center justify-center [&_svg:not([class*='size-'])]:size-4">
@@ -358,10 +359,10 @@ function MenubarRadioItem({
           <Icon icon={Check} />
         </Show>
       </span>
-      {children}
+      {props.children}
     </button>
   );
-}
+});
 
 type MenubarLabelProps = {
   children?: SinwanNode;
@@ -418,21 +419,22 @@ function MenubarShortcut({ class: className, children }: MenubarShortcutProps) {
 
 type MenubarSubProps = {
   children?: SinwanNode;
+  open?: boolean;
+  defaultOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
 };
 
-const MenubarSub = cc<MenubarSubProps>(({ children }) => {
-  const open = signal(false);
-  provide(MenubarSubKey, {
-    open,
-    setOpen: (v: boolean) => {
-      open.value = v;
-    },
-  });
-  return (
-    <div data-slot="menubar-sub" class="relative">
-      {children}
-    </div>
+const MenubarSub = cc<MenubarSubProps>((props) => {
+  provide(
+    MenubarSubKey,
+    createMenuSubApi({
+      controlled: "open" in props,
+      defaultOpen: props.defaultOpen,
+      readOpen: () => Boolean(props.open),
+      onOpenChange: props.onOpenChange,
+    }),
   );
+  return <div data-slot="menubar-sub">{props.children}</div>;
 });
 
 type MenubarSubTriggerProps = {
@@ -447,12 +449,6 @@ function MenubarSubTrigger({
   children,
 }: MenubarSubTriggerProps) {
   const api = inject(MenubarSubKey)!;
-  function openSub() {
-    api.setOpen(true);
-  }
-  function toggleSub() {
-    api.setOpen(!api.open.value);
-  }
   function openAttr() {
     return api.open.value ? "" : undefined;
   }
@@ -463,14 +459,21 @@ function MenubarSubTrigger({
       data-inset={inset ? "" : undefined}
       data-open={openAttr}
       class={cn(
-        "flex w-full cursor-default items-center gap-1.5 rounded-md px-1.5 py-1 text-sm outline-hidden select-none focus:bg-accent data-inset:pl-7 data-open:bg-accent [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+        "flex w-full cursor-default items-center gap-1.5 rounded-md px-1.5 py-1 text-sm outline-hidden select-none focus:bg-accent data-inset:ps-7 data-open:bg-accent data-open:text-accent-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
         className,
       )}
-      onmouseenter={openSub}
-      onclick={toggleSub}
+      onmouseenter={() => {
+        api.cancelClose();
+        api.setOpen(true);
+      }}
+      onmouseleave={() => api.requestClose()}
+      onclick={() => api.setOpen(!api.open.value)}
+      ref={(el: HTMLElement | null) => {
+        api.triggerEl.value = el;
+      }}
     >
       {children}
-      <Icon icon={ChevronRight} class="ml-auto" />
+      <Icon icon={ChevronRight} class="ms-auto rtl:rotate-180" />
     </button>
   );
 }
@@ -484,24 +487,14 @@ function MenubarSubContent({
   class: className,
   children,
 }: MenubarSubContentProps) {
-  const api = inject(MenubarSubKey)!;
-  function closeSub() {
-    api.setOpen(false);
-  }
   return (
-    <Show when={() => api.open.value} fallback={null}>
-      <div
-        data-slot="menubar-sub-content"
-        data-open=""
-        class={cn(
-          "absolute top-0 left-full z-50 ml-1 min-w-[96px] overflow-hidden rounded-lg bg-popover p-1 text-popover-foreground shadow-lg ring-1 ring-foreground/10",
-          className,
-        )}
-        onmouseleave={closeSub}
-      >
-        {children}
-      </div>
-    </Show>
+    <MenuSubContentLayer
+      api={inject(MenubarSubKey)!}
+      slot="menubar-sub-content"
+      class={className}
+    >
+      {children}
+    </MenuSubContentLayer>
   );
 }
 

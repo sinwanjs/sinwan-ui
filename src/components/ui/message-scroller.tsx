@@ -4,7 +4,6 @@ import {
   onMounted,
   onUnmounted,
   provide,
-  Show,
   type InjectionKey,
   type SinwanComponent,
   type SinwanNode,
@@ -19,6 +18,7 @@ import { Button, type ButtonProps } from "./button";
 type MessageScrollerApi = {
   stickToBottom: Signal<boolean>;
   atBottom: Signal<boolean>;
+  atTop: Signal<boolean>;
   scrollToBottom: (behavior?: ScrollBehavior) => void;
   viewportEl: Signal<HTMLElement | null>;
   contentEl: Signal<HTMLElement | null>;
@@ -27,6 +27,23 @@ type MessageScrollerApi = {
 const MessageScrollerKey: InjectionKey<MessageScrollerApi> = Symbol(
   "sinwan-ui.message-scroller",
 );
+
+const SCROLLER_EDGE_PX = 48;
+
+function syncScrollerEdges(api: MessageScrollerApi): void {
+  const el = api.viewportEl.value;
+  if (!el) return;
+  const overflow = el.scrollHeight - el.clientHeight;
+  if (overflow <= 1) {
+    api.atTop.value = true;
+    api.atBottom.value = true;
+    return;
+  }
+  api.atTop.value = el.scrollTop < SCROLLER_EDGE_PX;
+  api.atBottom.value =
+    overflow - el.scrollTop < SCROLLER_EDGE_PX;
+  if (!api.atBottom.value) api.stickToBottom.value = false;
+}
 
 export function useMessageScroller(): MessageScrollerApi {
   const api = inject(MessageScrollerKey);
@@ -61,23 +78,26 @@ export const MessageScrollerProvider: SinwanComponent<MessageScrollerProviderPro
   cc(({ children, initialStickToBottom = true }) => {
     const stickToBottom = signal(initialStickToBottom);
     const atBottom = signal(true);
+    const atTop = signal(true);
     const viewportEl = signal<HTMLElement | null>(null);
     const contentEl = signal<HTMLElement | null>(null);
 
-    const scrollToBottom = (behavior: ScrollBehavior = "smooth") => {
-      const el = viewportEl.value;
-      if (!el) return;
-      stickToBottom.value = true;
-      el.scrollTo({ top: el.scrollHeight, behavior });
-    };
-
-    provide(MessageScrollerKey, {
+    const api: MessageScrollerApi = {
       stickToBottom,
       atBottom,
-      scrollToBottom,
+      atTop,
+      scrollToBottom: (behavior: ScrollBehavior = "smooth") => {
+        const el = viewportEl.value;
+        if (!el) return;
+        stickToBottom.value = true;
+        el.scrollTo({ top: el.scrollHeight, behavior });
+        if (behavior !== "smooth") syncScrollerEdges(api);
+      },
       viewportEl,
       contentEl,
-    });
+    };
+
+    provide(MessageScrollerKey, api);
 
     return <>{children}</>;
   });
@@ -108,6 +128,12 @@ export const MessageScrollerViewport: SinwanComponent<MessageScrollerViewportPro
     let sentinel: HTMLElement | null = null;
 
     onMounted(() => {
+      if (api.stickToBottom.value) {
+        api.scrollToBottom("auto");
+      } else {
+        syncScrollerEdges(api);
+      }
+
       const viewport = api.viewportEl.value;
       if (!viewport || typeof IntersectionObserver === "undefined") return;
 
@@ -131,19 +157,14 @@ export const MessageScrollerViewport: SinwanComponent<MessageScrollerViewportPro
       <div
         data-slot="message-scroller-viewport"
         class={cn(
-          "size-full min-h-0 min-w-0 scroll-fade-b scrollbar-thin scrollbar-gutter-stable overflow-y-auto overscroll-contain contain-content data-autoscrolling:scrollbar-none",
+          "size-full min-h-0 min-w-0 scroll-fade-b scrollbar-modern overflow-y-auto overscroll-contain contain-content data-autoscrolling:scrollbar-none",
           className,
         )}
         ref={(el: HTMLElement | null) => {
           api.viewportEl.value = el;
         }}
         onscroll={(event) => {
-          const el = event.currentTarget as HTMLElement;
-          const distance =
-            el.scrollHeight - el.scrollTop - el.clientHeight;
-          const nearBottom = distance < 48;
-          api.atBottom.value = nearBottom;
-          if (!nearBottom) api.stickToBottom.value = false;
+          syncScrollerEdges(api);
           if (typeof onscroll === "function") {
             (
               onscroll as (event: Event) => void
@@ -176,6 +197,8 @@ export const MessageScrollerContent: SinwanComponent<MessageScrollerContentProps
       const observer = new MutationObserver(() => {
         if (api.stickToBottom.value) {
           api.scrollToBottom("auto");
+        } else {
+          syncScrollerEdges(api);
         }
       });
       observer.observe(content, { childList: true, subtree: true });
@@ -232,39 +255,44 @@ export const MessageScrollerButton: SinwanComponent<MessageScrollerButtonProps> 
     ...props
   }) => {
     const api = useMessageScroller();
+    const isActive = () =>
+      direction === "end" ? !api.atBottom.value : !api.atTop.value;
 
     return (
-      <Show when={() => !api.atBottom.value || direction === "start"}>
-        <Button
-          data-slot="message-scroller-button"
-          data-direction={direction}
-          data-variant={variant}
-          data-size={size}
-          data-active="true"
-          variant={variant}
-          size={size}
-          class={cn(
-            "absolute inset-s-1/2 -translate-x-1/2 border-border bg-background text-foreground transition-[translate,scale,opacity] duration-200 hover:bg-muted hover:text-foreground data-[active=false]:pointer-events-none data-[active=false]:scale-95 data-[active=false]:opacity-0 data-[active=false]:duration-400 data-[active=false]:ease-[cubic-bezier(0.7,0,0.84,0)] data-[active=true]:translate-y-0 data-[active=true]:scale-100 data-[active=true]:opacity-100 data-[active=true]:ease-[cubic-bezier(0.23,1,0.32,1)] data-[direction=end]:bottom-4 data-[direction=end]:data-[active=false]:translate-y-full data-[direction=start]:top-4 data-[direction=start]:data-[active=false]:-translate-y-full rtl:translate-x-1/2 data-[direction=start]:[&_svg]:rotate-180",
-            className,
-          )}
-          onclick={() => {
-            if (direction === "end") {
-              api.scrollToBottom("smooth");
-            } else {
-              api.viewportEl.value?.scrollTo({ top: 0, behavior: "smooth" });
-            }
-          }}
-          {...props}
-        >
-          {children ?? (
-            <>
-              <Icon icon={ArrowDown} />
-              <span class="sr-only">
-                {direction === "end" ? "Scroll to end" : "Scroll to start"}
-              </span>
-            </>
-          )}
-        </Button>
-      </Show>
+      <Button
+        data-slot="message-scroller-button"
+        data-direction={direction}
+        data-variant={variant}
+        data-size={size}
+        data-active={() => (isActive() ? "true" : "false")}
+        aria-hidden={() => (isActive() ? undefined : "true")}
+        tabIndex={() => (isActive() ? 0 : -1)}
+        variant={variant}
+        size={size}
+        class={cn(
+          "absolute left-1/2 z-10 -translate-x-1/2 border-border bg-background text-foreground transition-[translate,scale,opacity] duration-200 hover:bg-muted hover:text-foreground data-[active=false]:pointer-events-none data-[active=false]:scale-95 data-[active=false]:opacity-0 data-[active=false]:duration-400 data-[active=false]:ease-[cubic-bezier(0.7,0,0.84,0)] data-[active=true]:translate-y-0 data-[active=true]:scale-100 data-[active=true]:opacity-100 data-[active=true]:ease-[cubic-bezier(0.23,1,0.32,1)] data-[direction=end]:bottom-4 data-[direction=end]:data-[active=false]:translate-y-full data-[direction=start]:top-4 data-[direction=start]:data-[active=false]:-translate-y-full data-[direction=start]:[&_svg]:rotate-180",
+          className,
+        )}
+        onclick={() => {
+          if (direction === "end") {
+            api.scrollToBottom("smooth");
+            return;
+          }
+          const el = api.viewportEl.value;
+          if (!el) return;
+          api.stickToBottom.value = false;
+          el.scrollTo({ top: 0, behavior: "smooth" });
+        }}
+        {...props}
+      >
+        {children ?? (
+          <>
+            <Icon icon={ArrowDown} />
+            <span class="sr-only">
+              {direction === "end" ? "Scroll to end" : "Scroll to start"}
+            </span>
+          </>
+        )}
+      </Button>
     );
   });

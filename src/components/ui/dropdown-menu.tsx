@@ -6,8 +6,14 @@ import { Icon } from "../../icons";
 import { createLiveState, type Live } from "../../lib/live-state";
 import { Slot } from "../../lib/slot";
 import { cn } from "../../lib/utils";
-import { UiPortal, useAnchorPosition, type Align } from "../../primitives";
+import { Presence, UiPortal, useAnchorPosition, type Align } from "../../primitives";
 import { isDismissExemptPointerTarget } from "../../primitives/dismiss";
+import {
+  createMenuSubApi,
+  isInsideMenuSubContent,
+  MenuSubContentLayer,
+  type MenuSubApi,
+} from "../../primitives/menu-sub";
 
 type MenuApi = {
   open: Signal<boolean>;
@@ -17,15 +23,7 @@ type MenuApi = {
 
 const DropdownMenuKey: InjectionKey<MenuApi> = Symbol("sinwan-ui.dropdown-menu");
 
-type SubApi = {
-  open: Live<boolean>;
-  setOpen: (value: boolean) => void;
-  triggerEl: Signal<HTMLElement | null>;
-  cancelClose: () => void;
-  requestClose: (delayMs?: number) => void;
-};
-
-const DropdownSubKey: InjectionKey<SubApi> = Symbol("sinwan-ui.dropdown-sub");
+const DropdownSubKey: InjectionKey<MenuSubApi> = Symbol("sinwan-ui.dropdown-sub");
 
 type DropdownMenuProps = {
   children?: SinwanNode;
@@ -110,7 +108,7 @@ function DropdownMenuContent({
 }: DropdownMenuContentProps) {
   const api = inject(DropdownMenuKey)!;
   const contentEl = signal<HTMLElement | null>(null);
-  const { style, present, side } = useAnchorPosition({
+  const { style, side } = useAnchorPosition({
     open: () => api.open.value,
     trigger: () => api.triggerEl.value,
     content: () => contentEl.value,
@@ -122,6 +120,9 @@ function DropdownMenuContent({
       minWidth: `${Math.max(anchor.width, 128)}px`,
     }),
   });
+  function dropdownState() {
+    return api.open.value ? "open" : "closed";
+  }
 
   onMounted(() => {
     function onDoc(e: MouseEvent) {
@@ -147,15 +148,18 @@ function DropdownMenuContent({
   });
 
   return (
-    <Show when={() => present.value} fallback={null}>
+    <Presence
+      // @ts-expect-error live open getter
+      present={() => api.open.value}
+    >
       <UiPortal>
         <div
           data-slot="dropdown-menu-content"
-          data-open=""
+          data-state={dropdownState}
           data-side={() => side.value}
           role="menu"
           class={cn(
-            "z-50 max-h-96 min-w-32 overflow-x-hidden overflow-y-auto rounded-lg bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10 duration-100 data-[side=bottom]:slide-in-from-top-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+            "z-50 max-h-96 min-w-32 overflow-x-hidden overflow-y-auto rounded-lg bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10 duration-200 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 data-closed:!fill-mode-forwards",
             className,
           )}
           style={() => style.value as unknown as string}
@@ -166,7 +170,7 @@ function DropdownMenuContent({
           {children}
         </div>
       </UiPortal>
-    </Show>
+    </Presence>
   );
 }
 
@@ -216,12 +220,7 @@ function DropdownMenuItem({
       )}
       onclick={(e: MouseEvent) => {
         onclick?.(e);
-        if (e.defaultPrevented) return;
-        const target = e.currentTarget;
-        if (
-          target instanceof Element &&
-          target.closest("[data-slot$='-sub-content']") != null
-        ) {
+        if (e.defaultPrevented || isInsideMenuSubContent(e.currentTarget)) {
           return;
         }
         api.setOpen(false);
@@ -417,39 +416,15 @@ type DropdownMenuSubProps = {
 };
 
 const DropdownMenuSub = cc<DropdownMenuSubProps>((props) => {
-  const { state: open, set } = createLiveState(
-    "open" in props,
-    props.defaultOpen ?? false,
-    () => Boolean(props.open),
+  provide(
+    DropdownSubKey,
+    createMenuSubApi({
+      controlled: "open" in props,
+      defaultOpen: props.defaultOpen,
+      readOpen: () => Boolean(props.open),
+      onOpenChange: props.onOpenChange,
+    }),
   );
-  const triggerEl = signal<HTMLElement | null>(null);
-  let closeTimer: number | undefined;
-  function cancelClose() {
-    if (closeTimer !== undefined) {
-      window.clearTimeout(closeTimer);
-      closeTimer = undefined;
-    }
-  }
-  function setOpen(value: boolean) {
-    cancelClose();
-    set(value);
-    props.onOpenChange?.(value);
-  }
-  function requestClose(delayMs = 100) {
-    cancelClose();
-    closeTimer = window.setTimeout(() => {
-      closeTimer = undefined;
-      setOpen(false);
-    }, delayMs);
-  }
-  onUnmounted(cancelClose);
-  provide(DropdownSubKey, {
-    open,
-    setOpen,
-    triggerEl,
-    cancelClose,
-    requestClose,
-  });
   return <div data-slot="dropdown-menu-sub">{props.children}</div>;
 });
 
@@ -503,39 +478,14 @@ function DropdownMenuSubContent({
   class: className,
   children,
 }: DropdownMenuSubContentProps) {
-  const api = inject(DropdownSubKey)!;
-  const contentEl = signal<HTMLElement | null>(null);
-  const { style, present, side } = useAnchorPosition({
-    open: () => api.open.value,
-    trigger: () => api.triggerEl.value,
-    content: () => contentEl.value,
-    placement: "right",
-    align: "start",
-    gap: 4,
-    fallbackSize: { width: 128, height: 120 },
-  });
   return (
-    <Show when={() => present.value} fallback={null}>
-      <UiPortal>
-        <div
-          data-slot="dropdown-menu-sub-content"
-          data-open=""
-          data-side={() => side.value}
-          class={cn(
-            "z-50 min-w-[96px] overflow-hidden rounded-lg bg-popover p-1 text-popover-foreground shadow-lg ring-1 ring-foreground/10 duration-100 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95",
-            className,
-          )}
-          style={() => style.value as unknown as string}
-          onmouseenter={() => api.cancelClose()}
-          onmouseleave={() => api.requestClose()}
-          ref={(el: HTMLElement | null) => {
-            contentEl.value = el;
-          }}
-        >
-          {children}
-        </div>
-      </UiPortal>
-    </Show>
+    <MenuSubContentLayer
+      api={inject(DropdownSubKey)!}
+      slot="dropdown-menu-sub-content"
+      class={className}
+    >
+      {children}
+    </MenuSubContentLayer>
   );
 }
 

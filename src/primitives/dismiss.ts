@@ -6,6 +6,7 @@
  */
 const DISMISS_EXEMPT_SELECTOR = [
   "[data-slot$='-menu-content']",
+  "[data-slot='menubar-content']",
   "[data-slot$='-sub-content']",
   "[data-slot='select-content']",
   "[data-slot='popover-content']",

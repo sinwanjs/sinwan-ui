@@ -55,14 +55,61 @@ describe("primitives overlays", () => {
     unmount();
   });
 
-  test("collapsible toggles", () => {
+  test("collapsible content stays mounted closed then unmounts", async () => {
     const { root, click, unmount } = mountUi(() => (
+      <CollapsibleRoot defaultOpen>
+        <CollapsibleTrigger>Toggle</CollapsibleTrigger>
+        <CollapsibleContent>
+          <p>Hidden</p>
+        </CollapsibleContent>
+      </CollapsibleRoot>
+    ));
+    const content = document.querySelector(
+      '[data-slot="collapsible-content"]',
+    ) as HTMLElement;
+    await new Promise<void>((resolve) => {
+      requestAnimationFrame(() => resolve());
+    });
+    expect(root.querySelector('[data-slot="collapsible-trigger"]')).toBeTruthy();
+    expect(content.getAttribute("data-state")).toBe("open");
+    expect(
+      content.style.getPropertyValue("--radix-collapsible-content-height"),
+    ).toMatch(/px$/);
+    click('[data-slot="collapsible-trigger"]');
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(document.querySelector('[data-slot="collapsible-content"]')).toBe(
+      content,
+    );
+    expect(content.getAttribute("data-state")).toBe("closed");
+    await new Promise((r) => setTimeout(r, 250));
+    expect(document.querySelector('[data-slot="collapsible-content"]')).toBeNull();
+    click('[data-slot="collapsible-trigger"]');
+    await new Promise((r) => setTimeout(r, 10));
+    const reopened = document.querySelector(
+      '[data-slot="collapsible-content"]',
+    ) as HTMLElement;
+    expect(reopened).toBeTruthy();
+    expect(reopened.getAttribute("data-state")).toBe("open");
+    unmount();
+  });
+
+  test("collapsible content measures height without an inner element", async () => {
+    const { click, unmount } = mountUi(() => (
       <CollapsibleRoot defaultOpen>
         <CollapsibleTrigger>Toggle</CollapsibleTrigger>
         <CollapsibleContent>Hidden</CollapsibleContent>
       </CollapsibleRoot>
     ));
-    expect(root.querySelector('[data-slot="collapsible-trigger"]')).toBeTruthy();
+    const content = document.querySelector(
+      '[data-slot="collapsible-content"]',
+    ) as HTMLElement;
+    await new Promise<void>((resolve) => {
+      requestAnimationFrame(() => resolve());
+    });
+    expect(
+      content.style.getPropertyValue("--radix-collapsible-content-height"),
+    ).toMatch(/px$/);
     click('[data-slot="collapsible-trigger"]');
     unmount();
   });
@@ -230,6 +277,46 @@ describe("primitives controls", () => {
     expect(pressed).toBe(true);
     click('[data-slot="switch"]');
     click('[data-slot="radio-group-item"][data-state="unchecked"]');
+    unmount();
+  });
+
+  test("accordion content stays mounted closed then unmounts", async () => {
+    const { click, unmount } = mountUi(() => (
+      <AccordionRoot type="single" collapsible defaultValue="1">
+        <AccordionItem value="1">
+          <AccordionTrigger>Item</AccordionTrigger>
+          <AccordionContent>
+            <p>Body</p>
+          </AccordionContent>
+        </AccordionItem>
+      </AccordionRoot>
+    ));
+    const content = document.querySelector(
+      '[data-slot="accordion-content"]',
+    ) as HTMLElement;
+    await new Promise<void>((resolve) => {
+      requestAnimationFrame(() => resolve());
+    });
+    expect(content.getAttribute("data-state")).toBe("open");
+    expect(
+      content.style.getPropertyValue("--radix-accordion-content-height"),
+    ).toMatch(/px$/);
+    click('[data-slot="accordion-trigger"]');
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(document.querySelector('[data-slot="accordion-content"]')).toBe(
+      content,
+    );
+    expect(content.getAttribute("data-state")).toBe("closed");
+    await new Promise((r) => setTimeout(r, 250));
+    expect(document.querySelector('[data-slot="accordion-content"]')).toBeNull();
+    click('[data-slot="accordion-trigger"]');
+    await new Promise((r) => setTimeout(r, 10));
+    const reopened = document.querySelector(
+      '[data-slot="accordion-content"]',
+    ) as HTMLElement;
+    expect(reopened).toBeTruthy();
+    expect(reopened.getAttribute("data-state")).toBe("open");
     unmount();
   });
 });

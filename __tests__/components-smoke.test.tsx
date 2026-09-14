@@ -69,17 +69,11 @@ import {
   CarouselPrevious,
 } from "../src/components/ui/carousel";
 import {
-  ChartArea,
-  ChartBar,
+  Chart,
   ChartContainer,
-  ChartLegend,
-  ChartLegendContent,
-  ChartLine,
-  ChartPie,
   ChartStyle,
-  ChartTooltip,
-  ChartTooltipContent,
   THEMES,
+  type EChartsOption,
 } from "../src/components/ui/chart";
 import { Checkbox } from "../src/components/ui/checkbox";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../src/components/ui/collapsible";
@@ -574,7 +568,7 @@ describe("components smoke — controls", () => {
         </Accordion>
         <Collapsible defaultOpen>
           <CollapsibleTrigger>T</CollapsibleTrigger>
-          <CollapsibleContent>C</CollapsibleContent>
+          <CollapsibleContent class="gap-2">C</CollapsibleContent>
         </Collapsible>
         <Slider defaultValue={30} />
         <InputGroup>
@@ -615,6 +609,9 @@ describe("components smoke — controls", () => {
     expect(root.querySelector('[data-slot="checkbox"]')).toBeTruthy();
     expect(root.querySelector('[data-slot="input-otp"]')).toBeTruthy();
     expect(root.querySelector('[data-slot="calendar"]')).toBeTruthy();
+    expect(
+      root.querySelector('[data-slot="collapsible-content"]')?.className,
+    ).toContain("animate-collapsible-up");
     expect(toggleVariants({ variant: "outline" })).toBeTruthy();
     expect(tabsListVariants({ variant: "line" })).toBeTruthy();
     unmount();
@@ -857,49 +854,17 @@ describe("components smoke — heavy", () => {
           <CarouselNext />
         </Carousel>
         <ChartContainer config={chartConfig}>
-          <ChartBar
-            data={[
-              { month: "Jan", sales: 10 },
-              { month: "Feb", sales: 20 },
-            ]}
-            dataKey="sales"
+          <Chart
+            option={
+              {
+                xAxis: { type: "category", data: ["Jan", "Feb"] },
+                yAxis: { type: "value" },
+                series: [{ type: "bar", name: "sales", data: [10, 20] }],
+              } satisfies EChartsOption
+            }
+            renderer="svg"
+            style={{ width: "240px", height: "120px" }}
           />
-          <ChartLine
-            data={[
-              { x: 1, sales: 5 },
-              { x: 2, sales: 8 },
-            ]}
-            dataKey="sales"
-          />
-          <ChartArea
-            data={[
-              { x: 1, sales: 5 },
-              { x: 2, sales: 8 },
-            ]}
-            dataKey="sales"
-            fill
-          />
-          <ChartPie
-            data={[
-              { key: "a", value: 30, label: "a" },
-              { key: "b", value: 70, label: "b" },
-            ]}
-          />
-          <ChartTooltip active>
-            <ChartTooltipContent
-              active
-              label="sales"
-              payload={[
-                { name: "sales", dataKey: "sales", value: 10, color: "#00f" },
-              ]}
-            />
-          </ChartTooltip>
-          <ChartTooltip active={false} />
-          <ChartLegend>
-            <ChartLegendContent
-              payload={[{ value: "sales", dataKey: "sales", color: "#00f" }]}
-            />
-          </ChartLegend>
           <ChartStyle id="empty" config={{}} />
         </ChartContainer>
         <ResizablePanelGroup orientation="horizontal">

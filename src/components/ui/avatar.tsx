@@ -27,7 +27,7 @@ const Avatar: SinwanComponent<AvatarProps> = cc(
         data-slot="avatar"
         data-size={size}
         class={cn(
-          "group/avatar relative flex size-8 shrink-0 rounded-full select-none after:absolute after:inset-0 after:rounded-full after:border after:border-border after:mix-blend-darken data-[size=lg]:size-10 data-[size=sm]:size-6 dark:after:mix-blend-lighten",
+          "group/avatar relative flex size-8 shrink-0 rounded-full select-none after:pointer-events-none after:absolute after:inset-0 after:rounded-full after:border after:border-border after:mix-blend-darken data-[size=lg]:size-10 data-[size=sm]:size-6 dark:after:mix-blend-lighten",
           className,
         )}
         {...props}
@@ -50,7 +50,7 @@ const AvatarImage: SinwanComponent<AvatarImageProps> = cc(
           data-slot="avatar-image"
           class={() =>
             cn(
-              "aspect-square size-full rounded-full object-cover",
+              "absolute inset-0 aspect-square size-full overflow-hidden rounded-full object-cover",
               className,
               api.loaded.value ? undefined : "opacity-0",
             )
@@ -89,7 +89,7 @@ const AvatarFallback: SinwanComponent<AvatarFallbackProps> = cc(
         <span
           data-slot="avatar-fallback"
           class={cn(
-            "flex size-full items-center justify-center rounded-full bg-muted text-sm text-muted-foreground group-data-[size=sm]/avatar:text-xs",
+            "absolute inset-0 flex size-full items-center justify-center overflow-hidden rounded-full bg-muted text-sm text-muted-foreground group-data-[size=sm]/avatar:text-xs",
             className,
           )}
           {...props}

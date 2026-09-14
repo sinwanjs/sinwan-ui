@@ -36,13 +36,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../src/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../src/components/ui/tabs";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "../src/components/ui/tabs";
 import { Checkbox } from "../src/components/ui/checkbox";
 import { Switch } from "../src/components/ui/switch";
 import { RadioGroup, RadioGroupItem } from "../src/components/ui/radio-group";
 import { Toggle } from "../src/components/ui/toggle";
-import { ToggleGroup, ToggleGroupItem } from "../src/components/ui/toggle-group";
-import { signal } from "sinwan/reactivity";
+import {
+  ToggleGroup,
+  ToggleGroupItem,
+} from "../src/components/ui/toggle-group";
+import { nextTick, signal } from "sinwan/reactivity";
 import { Calendar } from "../src/components/ui/calendar";
 import { Progress } from "../src/components/ui/progress";
 import {
@@ -58,15 +66,35 @@ import {
   DropdownMenuTrigger,
 } from "../src/components/ui/dropdown-menu";
 import {
-  ChartBar,
+  ContextMenu,
+  ContextMenuCheckboxItem,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuRadioGroup,
+  ContextMenuRadioItem,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger,
+  ContextMenuTrigger,
+} from "../src/components/ui/context-menu";
+import {
+  Menubar,
+  MenubarCheckboxItem,
+  MenubarContent,
+  MenubarItem,
+  MenubarMenu,
+  MenubarRadioGroup,
+  MenubarRadioItem,
+  MenubarSub,
+  MenubarSubContent,
+  MenubarSubTrigger,
+  MenubarTrigger,
+} from "../src/components/ui/menubar";
+import { isInsideMenuSubContent } from "../src/primitives/menu-sub";
+import {
+  Chart,
   ChartContainer,
-  ChartLine,
-  ChartArea,
-  ChartPie,
-  ChartTooltip,
-  ChartTooltipContent,
-  ChartLegend,
-  ChartLegendContent,
+  type EChartsOption,
 } from "../src/components/ui/chart";
 import {
   InputOTP,
@@ -111,6 +139,21 @@ import {
   ComboboxValue,
 } from "../src/components/ui/combobox";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "../src/components/ui/tooltip";
+import {
+  NavigationMenu,
+  NavigationMenuContent,
+  NavigationMenuItem,
+  NavigationMenuLink,
+  NavigationMenuList,
+  NavigationMenuTrigger,
+} from "../src/components/ui/navigation-menu";
+import { DirectionProvider } from "../src/theme/direction";
+import {
   asVNode,
   lastResizeObserver,
   mountUi,
@@ -148,7 +191,9 @@ describe("Button behavior", () => {
         </Button>
       </>
     ));
-    expect(root.querySelectorAll('[data-slot="button"]').length).toBeGreaterThan(5);
+    expect(
+      root.querySelectorAll('[data-slot="button"]').length,
+    ).toBeGreaterThan(5);
     expect(root.querySelector("[aria-busy]")).toBeTruthy();
     expect(root.querySelector("a[aria-disabled]")).toBeTruthy();
     const disabledChild = root.querySelector("a[aria-disabled]") as HTMLElement;
@@ -164,15 +209,15 @@ describe("Button behavior", () => {
           prevented = true;
         },
       });
-      Object.defineProperty(evt, "stopPropagation", { value: () => { } });
+      Object.defineProperty(evt, "stopPropagation", { value: () => {} });
       (disabled.props.onclick as (e: Event) => void)(evt);
       expect(prevented).toBe(true);
 
       const loading = asVNode(Button({ isLoading: true, children: "y" }));
       const busy = loading.props["aria-busy"];
-      expect(typeof busy === "function" ? (busy as () => unknown)() : busy).toBe(
-        true,
-      );
+      expect(
+        typeof busy === "function" ? (busy as () => unknown)() : busy,
+      ).toBe(true);
       (loading.props.onclick as (e: Event) => void)(evt);
     });
   });
@@ -387,9 +432,7 @@ describe("Drawer inset", () => {
         </DrawerContent>
       </Drawer>
     ));
-    const sidePanel = side.query(
-      '[data-slot="drawer-content"]',
-    ) as HTMLElement;
+    const sidePanel = side.query('[data-slot="drawer-content"]') as HTMLElement;
     expect(sidePanel.getAttribute("data-vaul-drawer-direction")).toBe("left");
     expect(sidePanel.className).toContain("rounded-xl");
     expect(sidePanel.className).toContain("inset-y-4");
@@ -597,6 +640,9 @@ describe("Select Tabs Checkbox Switch Toggle", () => {
     ) as HTMLElement;
     trigger.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     await new Promise((r) => setTimeout(r, 0));
+    downBtn.dispatchEvent(
+      new MouseEvent("pointerdown", { bubbles: true, cancelable: true }),
+    );
     unmount();
   });
 
@@ -609,7 +655,9 @@ describe("Select Tabs Checkbox Switch Toggle", () => {
         <SelectContent />
       </Select>
     ));
-    expect(document.querySelector('[data-slot="select-viewport"]')).toBeTruthy();
+    expect(
+      document.querySelector('[data-slot="select-viewport"]'),
+    ).toBeTruthy();
     await new Promise((r) => setTimeout(r, 0));
     unmount();
   });
@@ -677,7 +725,9 @@ describe("Select Tabs Checkbox Switch Toggle", () => {
     expect(verticalRoot?.hasAttribute("data-horizontal")).toBe(false);
     expect(verticalRoot?.className.split(/\s+/)).toContain("flex-row");
     const verticalList = vertical.root.querySelector('[data-slot="tabs-list"]');
-    expect(verticalList?.className).toContain("group-data-vertical/tabs:flex-col");
+    expect(verticalList?.className).toContain(
+      "group-data-vertical/tabs:flex-col",
+    );
     vertical.unmount();
   });
 
@@ -801,8 +851,12 @@ describe("Select Tabs Checkbox Switch Toggle", () => {
   test("checkbox indeterminate shows mixed indicator", async () => {
     const mixed = signal(true);
     const { root, click, unmount } = mountUi(() => (
-      // @ts-expect-error uncompiled live getter
-      <Checkbox aria-label="Mixed" checked={false} indeterminate={() => mixed.value} />
+      <Checkbox
+        aria-label="Mixed"
+        checked={false}
+        // @ts-expect-error uncompiled live getter
+        indeterminate={() => mixed.value}
+      />
     ));
     const box = root.querySelector('[data-slot="checkbox"]');
     expect(box?.getAttribute("data-state")).toBe("indeterminate");
@@ -855,6 +909,48 @@ describe("Calendar Chart InputOTP Carousel", () => {
     hidden.unmount();
   });
 
+  test("calendar dropdown month and year are clickable and change the view", async () => {
+    const { root, click, unmount } = mountUi(() => (
+      <Calendar captionLayout="dropdown" fromYear={2020} toYear={2030} />
+    ));
+    const nav = root.querySelector(
+      '[data-slot="calendar-nav"]',
+    ) as HTMLElement | null;
+    expect(nav?.className).toContain("pointer-events-none");
+    expect(
+      root.querySelector('[aria-label="Previous month"]')?.className,
+    ).toContain("pointer-events-auto");
+    expect(
+      root.querySelector('[aria-label="Next month"]')?.className,
+    ).toContain("pointer-events-auto");
+
+    const monthSelect = root.querySelector(
+      '[aria-label="Month"]',
+    ) as HTMLSelectElement;
+    const nextMonth = monthSelect.value === "0" ? "6" : "0";
+    monthSelect.value = nextMonth;
+    monthSelect.dispatchEvent(new Event("change", { bubbles: true }));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(
+      (root.querySelector('[aria-label="Month"]') as HTMLSelectElement).value,
+    ).toBe(nextMonth);
+
+    const yearSelect = root.querySelector(
+      '[aria-label="Year"]',
+    ) as HTMLSelectElement;
+    yearSelect.value = "2021";
+    yearSelect.dispatchEvent(new Event("change", { bubbles: true }));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(
+      (root.querySelector('[aria-label="Year"]') as HTMLSelectElement).value,
+    ).toBe("2021");
+
+    click('[aria-label="Next month"]');
+    unmount();
+  });
+
   test("calendar range multiple weeks dropdown timezone and modifiers", () => {
     let range: Date | Date[] | { from?: Date; to?: Date } | undefined;
     const booked = [new Date(2024, 5, 12), new Date(2024, 5, 13)];
@@ -880,9 +976,9 @@ describe("Calendar Chart InputOTP Carousel", () => {
         }}
       />
     ));
-    expect(root.querySelector('[data-slot="calendar"]')?.getAttribute("dir")).toBe(
-      "rtl",
-    );
+    expect(
+      root.querySelector('[data-slot="calendar"]')?.getAttribute("dir"),
+    ).toBe("rtl");
     expect(root.querySelector('[aria-label="Month"]')).toBeTruthy();
     const enabled = Array.from(root.querySelectorAll("button")).filter(
       (button) =>
@@ -1024,14 +1120,16 @@ describe("Calendar Chart InputOTP Carousel", () => {
         weekStartsOn={6}
         month={new Date(2026, 8, 13)}
         captionLayout="dropdown"
-        onMonthChange={() => { }}
+        onMonthChange={() => {}}
       />
     ));
-    expect(hijri.root.querySelector('[data-calendar="islamic-umalqura"]')).toBeTruthy();
+    expect(
+      hijri.root.querySelector('[data-calendar="islamic-umalqura"]'),
+    ).toBeTruthy();
     const hijriDays = Array.from(hijri.root.querySelectorAll("[data-day]"));
-    expect(hijriDays.some((button) => /[٠-٩]/.test(button.textContent ?? ""))).toBe(
-      true,
-    );
+    expect(
+      hijriDays.some((button) => /[٠-٩]/.test(button.textContent ?? "")),
+    ).toBe(true);
     hijri.click('[aria-label="Previous month"]');
     hijri.click('[aria-label="Next month"]');
     const hijriMonth = hijri.root.querySelector(
@@ -1091,74 +1189,22 @@ describe("Calendar Chart InputOTP Carousel", () => {
         icon: () => <span>i</span>,
       },
     };
+    const option: EChartsOption = {
+      xAxis: { type: "category", data: ["a", "b"] },
+      yAxis: { type: "value" },
+      series: [{ type: "bar", name: "sales", data: [10, 30] }],
+    };
     const { root, unmount } = mountUi(() => (
-      <ChartContainer
-        config={config}
-        id="demo"
-        initialDimension={{ width: 240, height: 120 }}
-      >
-        <ChartBar
-          data={[
-            { m: "a", sales: 10 },
-            { m: "b", sales: 0 },
-            { m: "c", sales: 30 },
-          ]}
-          dataKey="sales"
-          gap={4}
+      <ChartContainer config={config} id="demo">
+        <Chart
+          option={option}
+          renderer="svg"
+          style={{ width: "240px", height: "120px" }}
         />
-        <ChartLine data={[{ m: "a", sales: 1 }]} dataKey="sales" strokeWidth={2} />
-        <ChartLine data={[]} dataKey="sales" />
-        <ChartArea
-          data={[
-            { m: "a", sales: 5 },
-            { m: "b", sales: 15 },
-          ]}
-          dataKey="sales"
-          fill
-        />
-        <ChartPie
-          data={[
-            { key: "a", value: 40 },
-            { key: "b", value: 60 },
-          ]}
-        />
-        <ChartTooltip active>
-          <ChartTooltipContent
-            active
-            indicator="line"
-            label="sales"
-            labelFormatter={(v) => String(v)}
-            formatter={(v, name) => `${name}:${v}`}
-            payload={[
-              { name: "sales", dataKey: "sales", value: 10, type: "none" },
-              {
-                name: "revenue",
-                dataKey: "revenue",
-                value: 20,
-                color: "#0f0",
-                payload: { fill: "#abc" },
-              },
-            ]}
-          />
-        </ChartTooltip>
-        <ChartTooltipContent
-          active
-          indicator="dashed"
-          hideLabel
-          payload={[{ name: "sales", dataKey: "sales", value: 3 }]}
-        />
-        <ChartLegend>
-          <ChartLegendContent
-            payload={[
-              { value: "sales", dataKey: "sales", color: "#00f" },
-              { value: "revenue", dataKey: "revenue", color: "#0f0" },
-            ]}
-          />
-        </ChartLegend>
       </ChartContainer>
     ));
     expect(root.querySelector('[data-slot="chart"]')).toBeTruthy();
-    expect(root.querySelector('[data-slot="chart-bar"]')).toBeTruthy();
+    expect(root.querySelector('[data-slot="chart-view"]')).toBeTruthy();
     unmount();
   });
 
@@ -1238,6 +1284,106 @@ describe("Calendar Chart InputOTP Carousel", () => {
     unmount();
   });
 
+  test("carousel swipe changes slides and ignores cross-axis drags", () => {
+    let api: CarouselApi | undefined;
+    const { root, unmount } = mountUi(() => (
+      <Carousel
+        opts={{ startIndex: 0, loop: false }}
+        setApi={(a) => {
+          api = a;
+        }}
+      >
+        <CarouselContent>
+          <CarouselItem>1</CarouselItem>
+          <CarouselItem>2</CarouselItem>
+          <CarouselItem>3</CarouselItem>
+        </CarouselContent>
+      </Carousel>
+    ));
+    const viewport = root.querySelector(
+      '[data-slot="carousel-content"]',
+    ) as HTMLElement;
+
+    const pointer = (
+      type: string,
+      clientX: number,
+      clientY: number,
+      extra: MouseEventInit = {},
+    ) =>
+      new MouseEvent(type, {
+        bubbles: true,
+        cancelable: true,
+        clientX,
+        clientY,
+        ...extra,
+      });
+
+    viewport.dispatchEvent(pointer("pointerdown", 120, 40, { button: 2 }));
+    window.dispatchEvent(pointer("pointermove", 20, 40));
+    window.dispatchEvent(pointer("pointerup", 20, 40));
+    expect(api!.index.value).toBe(0);
+
+    viewport.dispatchEvent(pointer("pointerdown", 120, 40));
+    window.dispatchEvent(pointer("pointermove", 116, 42));
+    window.dispatchEvent(pointer("pointerup", 116, 42));
+    expect(api!.index.value).toBe(0);
+
+    viewport.dispatchEvent(pointer("pointerdown", 120, 40));
+    window.dispatchEvent(pointer("pointermove", 120, 140));
+    window.dispatchEvent(pointer("pointermove", 118, 200));
+    window.dispatchEvent(pointer("pointerup", 118, 200));
+    expect(api!.index.value).toBe(0);
+
+    viewport.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+    expect(api!.index.value).toBe(0);
+
+    viewport.dispatchEvent(pointer("pointerdown", 120, 40));
+    window.dispatchEvent(new Event("pointermove"));
+    window.dispatchEvent(pointer("pointermove", 40, 44, { cancelable: false }));
+    window.dispatchEvent(pointer("pointerdown", 120, 40));
+    window.dispatchEvent(pointer("pointermove", 40, 44));
+    window.dispatchEvent(pointer("pointerup", 40, 44));
+    expect(api!.index.value).toBe(1);
+
+    viewport.dispatchEvent(pointer("pointerdown", 40, 40));
+    window.dispatchEvent(pointer("pointermove", 140, 40));
+    window.dispatchEvent(pointer("pointerup", 140, 40));
+    expect(api!.index.value).toBe(0);
+
+    viewport.dispatchEvent(pointer("pointerdown", 120, 40));
+    window.dispatchEvent(pointer("pointermove", 40, 40));
+    window.dispatchEvent(pointer("pointerup", 40, 40));
+    expect(api!.index.value).toBe(1);
+    viewport.dispatchEvent(pointer("pointerdown", 120, 40));
+    window.dispatchEvent(pointer("pointermove", 40, 40));
+    window.dispatchEvent(pointer("pointerup", 40, 40));
+    expect(api!.index.value).toBe(2);
+    viewport.dispatchEvent(pointer("pointerdown", 120, 40));
+    window.dispatchEvent(pointer("pointermove", 40, 40));
+    window.dispatchEvent(pointer("pointerup", 40, 40));
+    expect(api!.index.value).toBe(2);
+
+    viewport.dispatchEvent(pointer("pointerdown", 40, 40));
+    window.dispatchEvent(pointer("pointermove", 140, 40));
+    window.dispatchEvent(pointer("pointerup", 140, 40));
+    expect(api!.index.value).toBe(1);
+
+    api!.scrollTo(0);
+    viewport.dispatchEvent(pointer("pointerdown", 40, 40));
+    window.dispatchEvent(pointer("pointermove", 140, 40));
+    window.dispatchEvent(pointer("pointerup", 140, 40));
+    expect(api!.index.value).toBe(0);
+
+    viewport.dispatchEvent(pointer("pointerdown", 120, 40));
+    window.dispatchEvent(pointer("pointermove", 40, 40));
+    window.dispatchEvent(new Event("pointercancel"));
+    expect(api!.index.value).toBe(0);
+
+    viewport.dispatchEvent(pointer("pointerdown", 120, 40));
+    window.dispatchEvent(pointer("pointermove", 40, 40));
+    unmount();
+  });
+
   test("progress indicator width follows value", async () => {
     const n = signal(35);
     const { root, unmount } = mountUi(() => (
@@ -1263,7 +1409,9 @@ describe("Calendar Chart InputOTP Carousel", () => {
 
     const zero = mountUi(() => <Progress value={0} />);
     expect(
-      zero.root.querySelector('[data-slot="progress"]')?.getAttribute("aria-valuenow"),
+      zero.root
+        .querySelector('[data-slot="progress"]')
+        ?.getAttribute("aria-valuenow"),
     ).toBe("0");
     expect(
       (
@@ -1332,7 +1480,9 @@ describe("Dropdown menu checkbox radio submenu", () => {
     await Promise.resolve();
     expect(checked.value).toBe(false);
     expect(item.getAttribute("aria-checked")).toBe("false");
-    expect(document.querySelector('[data-slot="dropdown-menu-content"]')).toBeTruthy();
+    expect(
+      document.querySelector('[data-slot="dropdown-menu-content"]'),
+    ).toBeTruthy();
     item.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     await Promise.resolve();
     await Promise.resolve();
@@ -1444,30 +1594,565 @@ describe("Dropdown menu checkbox radio submenu", () => {
     expect(document.querySelector('[data-slot="dropdown-menu-content"]')).toBe(
       parent,
     );
-    expect(document.querySelector('[data-slot="dropdown-menu-sub-content"]')).toBe(
+    expect(
+      document.querySelector('[data-slot="dropdown-menu-sub-content"]'),
+    ).toBe(sub);
+    sub.dispatchEvent(new MouseEvent("mouseenter", { bubbles: true }));
+    trigger.dispatchEvent(new MouseEvent("mouseleave", { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 10));
+    expect(
+      document.querySelector('[data-slot="dropdown-menu-sub-content"]'),
+    ).toBe(sub);
+    sub.dispatchEvent(new MouseEvent("mouseleave", { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 150));
+    expect(sub.getAttribute("data-state")).toBe("closed");
+    await new Promise((r) => setTimeout(r, 250));
+    expect(
+      document.querySelector('[data-slot="dropdown-menu-sub-content"]'),
+    ).toBeNull();
+    trigger.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 10));
+    const reopened = document.querySelector(
+      '[data-slot="dropdown-menu-sub-content"]',
+    ) as HTMLElement;
+    expect(reopened).toBeTruthy();
+    trigger.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 10));
+    expect(reopened.getAttribute("data-state")).toBe("closed");
+    await new Promise((r) => setTimeout(r, 250));
+    expect(
+      document.querySelector('[data-slot="dropdown-menu-sub-content"]'),
+    ).toBeNull();
+    unmount();
+  });
+});
+
+function openContextMenu(root: ParentNode) {
+  (
+    root.querySelector('[data-slot="context-menu-trigger"]') as HTMLElement
+  ).dispatchEvent(
+    new MouseEvent("contextmenu", {
+      bubbles: true,
+      cancelable: true,
+      clientX: 40,
+      clientY: 50,
+    }),
+  );
+}
+
+describe("Context menu checkbox radio submenu", () => {
+  test("checkbox toggles live checked and stays open", async () => {
+    const checked = signal(true);
+    const { root, unmount } = mountUi(() => (
+      <ContextMenu>
+        <ContextMenuTrigger>Right</ContextMenuTrigger>
+        <ContextMenuContent>
+          <ContextMenuCheckboxItem
+            // @ts-expect-error uncompiled live getter
+            checked={() => checked.value}
+            onCheckedChange={(v) => {
+              checked.value = v;
+            }}
+            inset
+          >
+            Bookmarks
+          </ContextMenuCheckboxItem>
+          <ContextMenuCheckboxItem disabled checked>
+            Locked
+          </ContextMenuCheckboxItem>
+        </ContextMenuContent>
+      </ContextMenu>
+    ));
+    openContextMenu(root);
+    await new Promise((r) => setTimeout(r, 10));
+    const items = document.querySelectorAll(
+      '[data-slot="context-menu-checkbox-item"]',
+    );
+    const item = items[0] as HTMLElement;
+    expect(item.getAttribute("aria-checked")).toBe("true");
+    item.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(checked.value).toBe(false);
+    expect(item.getAttribute("aria-checked")).toBe("false");
+    expect(
+      document.querySelector('[data-slot="context-menu-content"]'),
+    ).toBeTruthy();
+    item.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(checked.value).toBe(true);
+    (items[1] as HTMLElement).dispatchEvent(
+      new MouseEvent("click", { bubbles: true }),
+    );
+    expect(checked.value).toBe(true);
+    unmount();
+  });
+
+  test("radio selection updates without remounting the menu", async () => {
+    const person = signal("colm");
+    const { root, unmount } = mountUi(() => (
+      <ContextMenu>
+        <ContextMenuTrigger>Right</ContextMenuTrigger>
+        <ContextMenuContent>
+          <ContextMenuRadioGroup
+            // @ts-expect-error uncompiled live getter
+            value={() => person.value}
+            onValueChange={(v) => {
+              person.value = v;
+            }}
+          >
+            <ContextMenuRadioItem value="pedro" inset>
+              Pedro
+            </ContextMenuRadioItem>
+            <ContextMenuRadioItem value="colm">Colm</ContextMenuRadioItem>
+            <ContextMenuRadioItem value="locked" disabled>
+              Locked
+            </ContextMenuRadioItem>
+          </ContextMenuRadioGroup>
+        </ContextMenuContent>
+      </ContextMenu>
+    ));
+    openContextMenu(root);
+    await new Promise((r) => setTimeout(r, 10));
+    const content = document.querySelector(
+      '[data-slot="context-menu-content"]',
+    );
+    const radios = document.querySelectorAll(
+      '[data-slot="context-menu-radio-item"]',
+    );
+    expect((radios[1] as HTMLElement).getAttribute("aria-checked")).toBe(
+      "true",
+    );
+    (radios[0] as HTMLElement).dispatchEvent(
+      new MouseEvent("click", { bubbles: true }),
+    );
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(person.value).toBe("pedro");
+    expect((radios[0] as HTMLElement).getAttribute("aria-checked")).toBe(
+      "true",
+    );
+    expect(document.querySelector('[data-slot="context-menu-content"]')).toBe(
+      content,
+    );
+    (radios[2] as HTMLElement).dispatchEvent(
+      new MouseEvent("click", { bubbles: true }),
+    );
+    expect(person.value).toBe("pedro");
+    unmount();
+  });
+
+  test("uncontrolled radio and preventDefault item keep the menu open", async () => {
+    const { root, unmount } = mountUi(() => (
+      <ContextMenu>
+        <ContextMenuTrigger>Right</ContextMenuTrigger>
+        <ContextMenuContent>
+          <ContextMenuRadioGroup defaultValue="a">
+            <ContextMenuRadioItem value="a">A</ContextMenuRadioItem>
+            <ContextMenuRadioItem value="b">B</ContextMenuRadioItem>
+          </ContextMenuRadioGroup>
+          <ContextMenuItem
+            onclick={(e) => {
+              e.preventDefault();
+            }}
+          >
+            Keep
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
+    ));
+    openContextMenu(root);
+    await new Promise((r) => setTimeout(r, 10));
+    const content = document.querySelector(
+      '[data-slot="context-menu-content"]',
+    );
+    const radios = document.querySelectorAll(
+      '[data-slot="context-menu-radio-item"]',
+    );
+    (radios[1] as HTMLElement).dispatchEvent(
+      new MouseEvent("click", { bubbles: true }),
+    );
+    await Promise.resolve();
+    expect((radios[1] as HTMLElement).getAttribute("aria-checked")).toBe(
+      "true",
+    );
+    document
+      .querySelector('[data-slot="context-menu-item"]')
+      ?.dispatchEvent(
+        new MouseEvent("click", { bubbles: true, cancelable: true }),
+      );
+    await Promise.resolve();
+    expect(document.querySelector('[data-slot="context-menu-content"]')).toBe(
+      content,
+    );
+    unmount();
+  });
+
+  test("submenu opens beside the trigger and is not clipped by the parent", async () => {
+    const subOpen = signal(false);
+    const { root, unmount } = mountUi(() => (
+      <ContextMenu>
+        <ContextMenuTrigger>Right</ContextMenuTrigger>
+        <ContextMenuContent>
+          <ContextMenuItem>Back</ContextMenuItem>
+          <ContextMenuSub
+            // @ts-expect-error uncompiled live getter
+            open={() => subOpen.value}
+            onOpenChange={(next) => {
+              subOpen.value = next;
+            }}
+          >
+            <ContextMenuSubTrigger inset>More tools</ContextMenuSubTrigger>
+            <ContextMenuSubContent>
+              <ContextMenuItem>Save page as…</ContextMenuItem>
+            </ContextMenuSubContent>
+          </ContextMenuSub>
+        </ContextMenuContent>
+      </ContextMenu>
+    ));
+    openContextMenu(root);
+    await new Promise((r) => setTimeout(r, 10));
+    const parent = document.querySelector(
+      '[data-slot="context-menu-content"]',
+    ) as HTMLElement;
+    const trigger = document.querySelector(
+      '[data-slot="context-menu-sub-trigger"]',
+    ) as HTMLElement;
+    trigger.dispatchEvent(new MouseEvent("mouseenter", { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 10));
+    const sub = document.querySelector(
+      '[data-slot="context-menu-sub-content"]',
+    ) as HTMLElement;
+    expect(sub).toBeTruthy();
+    expect(parent.contains(sub)).toBe(false);
+    expect(sub.style.position).toBe("fixed");
+    const save = sub.querySelector(
+      '[data-slot="context-menu-item"]',
+    ) as HTMLElement;
+    save.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true }));
+    save.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(document.querySelector('[data-slot="context-menu-content"]')).toBe(
+      parent,
+    );
+    expect(
+      document.querySelector('[data-slot="context-menu-sub-content"]'),
+    ).toBe(sub);
+    sub.dispatchEvent(new MouseEvent("mouseenter", { bubbles: true }));
+    trigger.dispatchEvent(new MouseEvent("mouseleave", { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 10));
+    expect(
+      document.querySelector('[data-slot="context-menu-sub-content"]'),
+    ).toBe(sub);
+    sub.dispatchEvent(new MouseEvent("mouseleave", { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 150));
+    expect(sub.getAttribute("data-state")).toBe("closed");
+    await new Promise((r) => setTimeout(r, 250));
+    expect(
+      document.querySelector('[data-slot="context-menu-sub-content"]'),
+    ).toBeNull();
+    trigger.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 10));
+    const reopened = document.querySelector(
+      '[data-slot="context-menu-sub-content"]',
+    ) as HTMLElement;
+    expect(reopened).toBeTruthy();
+    trigger.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 10));
+    expect(reopened.getAttribute("data-state")).toBe("closed");
+    await new Promise((r) => setTimeout(r, 250));
+    expect(
+      document.querySelector('[data-slot="context-menu-sub-content"]'),
+    ).toBeNull();
+    trigger.dispatchEvent(new MouseEvent("mouseenter", { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 10));
+    trigger.dispatchEvent(new MouseEvent("mouseleave", { bubbles: true }));
+    unmount();
+
+    const extra = mountUi(() => (
+      <ContextMenu>
+        <ContextMenuTrigger>Right</ContextMenuTrigger>
+        <ContextMenuContent>
+          <ContextMenuSub defaultOpen>
+            <ContextMenuSubTrigger>More</ContextMenuSubTrigger>
+            <ContextMenuSubContent>
+              <ContextMenuItem>X</ContextMenuItem>
+            </ContextMenuSubContent>
+          </ContextMenuSub>
+        </ContextMenuContent>
+      </ContextMenu>
+    ));
+    openContextMenu(extra.root);
+    await new Promise((r) => setTimeout(r, 10));
+    expect(
+      document.querySelector('[data-slot="context-menu-sub-content"]'),
+    ).toBeTruthy();
+    extra.unmount();
+  });
+});
+
+describe("Menubar submenu portal", () => {
+  test("isInsideMenuSubContent ignores non-elements", () => {
+    expect(isInsideMenuSubContent(null)).toBe(false);
+    expect(isInsideMenuSubContent(document.createTextNode("x"))).toBe(false);
+  });
+
+  test("submenu opens beside the trigger and is not clipped by the parent", async () => {
+    const subOpen = signal(false);
+    const { unmount } = mountUi(() => (
+      <Menubar>
+        <MenubarMenu>
+          <MenubarTrigger>File</MenubarTrigger>
+          <MenubarContent>
+            <MenubarItem>New Tab</MenubarItem>
+            <MenubarSub
+              // @ts-expect-error uncompiled live getter
+              open={() => subOpen.value}
+              onOpenChange={(next) => {
+                subOpen.value = next;
+              }}
+            >
+              <MenubarSubTrigger inset>Share</MenubarSubTrigger>
+              <MenubarSubContent>
+                <MenubarItem>Email link</MenubarItem>
+              </MenubarSubContent>
+            </MenubarSub>
+          </MenubarContent>
+        </MenubarMenu>
+      </Menubar>
+    ));
+    await new Promise((r) => setTimeout(r, 10));
+    (
+      document.querySelector('[data-slot="menubar-trigger"]') as HTMLElement
+    ).dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 10));
+    const parent = document.querySelector(
+      '[data-slot="menubar-content"]',
+    ) as HTMLElement;
+    const trigger = document.querySelector(
+      '[data-slot="menubar-sub-trigger"]',
+    ) as HTMLElement;
+    trigger.dispatchEvent(new MouseEvent("mouseenter", { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 10));
+    const sub = document.querySelector(
+      '[data-slot="menubar-sub-content"]',
+    ) as HTMLElement;
+    expect(sub).toBeTruthy();
+    expect(parent.contains(sub)).toBe(false);
+    expect(sub.style.position).toBe("fixed");
+    const email = sub.querySelector(
+      '[data-slot="menubar-item"]',
+    ) as HTMLElement;
+    email.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true }));
+    email.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(document.querySelector('[data-slot="menubar-content"]')).toBe(
+      parent,
+    );
+    expect(document.querySelector('[data-slot="menubar-sub-content"]')).toBe(
       sub,
     );
     sub.dispatchEvent(new MouseEvent("mouseenter", { bubbles: true }));
     trigger.dispatchEvent(new MouseEvent("mouseleave", { bubbles: true }));
     await new Promise((r) => setTimeout(r, 10));
-    expect(document.querySelector('[data-slot="dropdown-menu-sub-content"]')).toBe(
+    expect(document.querySelector('[data-slot="menubar-sub-content"]')).toBe(
       sub,
     );
     sub.dispatchEvent(new MouseEvent("mouseleave", { bubbles: true }));
     await new Promise((r) => setTimeout(r, 150));
+    expect(sub.getAttribute("data-state")).toBe("closed");
+    await new Promise((r) => setTimeout(r, 250));
     expect(
-      document.querySelector('[data-slot="dropdown-menu-sub-content"]'),
+      document.querySelector('[data-slot="menubar-sub-content"]'),
     ).toBeNull();
     trigger.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     await new Promise((r) => setTimeout(r, 10));
+    const reopened = document.querySelector(
+      '[data-slot="menubar-sub-content"]',
+    ) as HTMLElement;
+    expect(reopened).toBeTruthy();
+    trigger.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 10));
+    expect(reopened.getAttribute("data-state")).toBe("closed");
+    await new Promise((r) => setTimeout(r, 250));
     expect(
-      document.querySelector('[data-slot="dropdown-menu-sub-content"]'),
+      document.querySelector('[data-slot="menubar-sub-content"]'),
+    ).toBeNull();
+    trigger.dispatchEvent(new MouseEvent("mouseenter", { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 10));
+    trigger.dispatchEvent(new MouseEvent("mouseleave", { bubbles: true }));
+    unmount();
+  });
+});
+
+describe("Menubar checkbox radio", () => {
+  test("checkbox toggles live checked and stays open", async () => {
+    const checked = signal(true);
+    const { unmount } = mountUi(() => (
+      <Menubar>
+        <MenubarMenu>
+          <MenubarTrigger>View</MenubarTrigger>
+          <MenubarContent>
+            <MenubarCheckboxItem
+              // @ts-expect-error uncompiled live getter
+              checked={() => checked.value}
+              onCheckedChange={(v) => {
+                checked.value = v;
+              }}
+              inset
+            >
+              Status
+            </MenubarCheckboxItem>
+            <MenubarCheckboxItem disabled checked>
+              Locked
+            </MenubarCheckboxItem>
+          </MenubarContent>
+        </MenubarMenu>
+      </Menubar>
+    ));
+    await new Promise((r) => setTimeout(r, 10));
+    (
+      document.querySelector('[data-slot="menubar-trigger"]') as HTMLElement
+    ).dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 10));
+    const items = document.querySelectorAll(
+      '[data-slot="menubar-checkbox-item"]',
+    );
+    const item = items[0] as HTMLElement;
+    expect(item.getAttribute("aria-checked")).toBe("true");
+    item.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true }));
+    item.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(checked.value).toBe(false);
+    expect(item.getAttribute("aria-checked")).toBe("false");
+    await new Promise((r) => setTimeout(r, 250));
+    expect(
+      document.querySelector('[data-slot="menubar-content"]'),
     ).toBeTruthy();
-    trigger.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    item.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true }));
+    item.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(checked.value).toBe(true);
+    expect(item.getAttribute("aria-checked")).toBe("true");
+    (items[1] as HTMLElement).dispatchEvent(
+      new MouseEvent("click", { bubbles: true }),
+    );
+    expect(checked.value).toBe(true);
+    unmount();
+  });
+
+  test("radio selection updates without remounting the menu", async () => {
+    const panel = signal("console");
+    const { unmount } = mountUi(() => (
+      <Menubar>
+        <MenubarMenu>
+          <MenubarTrigger>View</MenubarTrigger>
+          <MenubarContent>
+            <MenubarRadioGroup
+              // @ts-expect-error uncompiled live getter
+              value={() => panel.value}
+              onValueChange={(v) => {
+                panel.value = v;
+              }}
+            >
+              <MenubarRadioItem value="inspector" inset>
+                Inspector
+              </MenubarRadioItem>
+              <MenubarRadioItem value="console">Console</MenubarRadioItem>
+              <MenubarRadioItem value="network" disabled>
+                Network
+              </MenubarRadioItem>
+            </MenubarRadioGroup>
+          </MenubarContent>
+        </MenubarMenu>
+      </Menubar>
+    ));
     await new Promise((r) => setTimeout(r, 10));
-    expect(
-      document.querySelector('[data-slot="dropdown-menu-sub-content"]'),
-    ).toBeNull();
+    (
+      document.querySelector('[data-slot="menubar-trigger"]') as HTMLElement
+    ).dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 10));
+    const content = document.querySelector('[data-slot="menubar-content"]');
+    const radios = document.querySelectorAll(
+      '[data-slot="menubar-radio-item"]',
+    );
+    expect((radios[1] as HTMLElement).getAttribute("aria-checked")).toBe(
+      "true",
+    );
+    (radios[0] as HTMLElement).dispatchEvent(
+      new MouseEvent("pointerdown", { bubbles: true }),
+    );
+    (radios[0] as HTMLElement).dispatchEvent(
+      new MouseEvent("click", { bubbles: true }),
+    );
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(panel.value).toBe("inspector");
+    expect((radios[0] as HTMLElement).getAttribute("aria-checked")).toBe(
+      "true",
+    );
+    await new Promise((r) => setTimeout(r, 250));
+    expect(document.querySelector('[data-slot="menubar-content"]')).toBe(
+      content,
+    );
+    (radios[2] as HTMLElement).dispatchEvent(
+      new MouseEvent("click", { bubbles: true }),
+    );
+    expect(panel.value).toBe("inspector");
+    unmount();
+  });
+
+  test("uncontrolled radio and preventDefault item keep the menu open", async () => {
+    const { unmount } = mountUi(() => (
+      <Menubar>
+        <MenubarMenu>
+          <MenubarTrigger>View</MenubarTrigger>
+          <MenubarContent>
+            <MenubarRadioGroup defaultValue="a">
+              <MenubarRadioItem value="a">A</MenubarRadioItem>
+              <MenubarRadioItem value="b">B</MenubarRadioItem>
+            </MenubarRadioGroup>
+            <MenubarItem
+              onclick={(e) => {
+                e.preventDefault();
+              }}
+            >
+              Keep
+            </MenubarItem>
+          </MenubarContent>
+        </MenubarMenu>
+      </Menubar>
+    ));
+    await new Promise((r) => setTimeout(r, 10));
+    (
+      document.querySelector('[data-slot="menubar-trigger"]') as HTMLElement
+    ).dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 10));
+    const content = document.querySelector('[data-slot="menubar-content"]');
+    const radios = document.querySelectorAll(
+      '[data-slot="menubar-radio-item"]',
+    );
+    (radios[1] as HTMLElement).dispatchEvent(
+      new MouseEvent("click", { bubbles: true }),
+    );
+    await Promise.resolve();
+    expect((radios[1] as HTMLElement).getAttribute("aria-checked")).toBe(
+      "true",
+    );
+    document
+      .querySelector('[data-slot="menubar-item"]')
+      ?.dispatchEvent(
+        new MouseEvent("click", { bubbles: true, cancelable: true }),
+      );
+    await Promise.resolve();
+    expect(document.querySelector('[data-slot="menubar-content"]')).toBe(
+      content,
+    );
     unmount();
   });
 });
@@ -1534,7 +2219,7 @@ describe("Toast Sidebar Resizable Command Combobox", () => {
     none.unmount();
   });
 
-  test("resizable panels handle drag", () => {
+  test("resizable panels handle drag", async () => {
     const { root, unmount } = mountUi(() => (
       <ResizablePanelGroup orientation="horizontal">
         <ResizablePanel defaultSize={30} minSize={10}>
@@ -1549,6 +2234,11 @@ describe("Toast Sidebar Resizable Command Combobox", () => {
     ) as HTMLElement;
     expect(handle).toBeTruthy();
     const group = handle.parentElement!;
+    const panels = root.querySelectorAll(
+      '[data-slot="resizable-panel"]',
+    ) as NodeListOf<HTMLElement>;
+    expect(panels[0]?.style.flexBasis).toBe("30%");
+    expect(panels[0]?.getAttribute("data-size")).toBe("30");
     group.getBoundingClientRect = () =>
       ({
         width: 200,
@@ -1559,7 +2249,7 @@ describe("Toast Sidebar Resizable Command Combobox", () => {
         right: 200,
         x: 0,
         y: 0,
-        toJSON: () => ({})
+        toJSON: () => ({}),
       }) as DOMRect;
 
     handle.dispatchEvent(
@@ -1569,10 +2259,17 @@ describe("Toast Sidebar Resizable Command Combobox", () => {
         clientY: 0,
       }),
     );
+    expect(document.body.style.cursor).toBe("col-resize");
+    expect(group.getAttribute("data-resizing")).toBe("");
     window.dispatchEvent(
       new MouseEvent("pointermove", { clientX: 120, clientY: 0 }),
     );
+    await nextTick();
+    expect(panels[0]?.style.flexBasis).toBe("40%");
+    expect(panels[0]?.getAttribute("data-size")).toBe("40");
     window.dispatchEvent(new MouseEvent("pointerup"));
+    expect(document.body.style.cursor).toBe("");
+    expect(group.hasAttribute("data-resizing")).toBe(false);
     unmount();
 
     expect(() =>
@@ -1593,7 +2290,879 @@ describe("Toast Sidebar Resizable Command Combobox", () => {
         <ResizablePanel defaultSize={50}>B</ResizablePanel>
       </ResizablePanelGroup>
     ));
+    const disabledHandle = vert.root.querySelector(
+      '[data-slot="resizable-handle"]',
+    ) as HTMLElement;
+    disabledHandle.dispatchEvent(
+      new MouseEvent("pointerdown", {
+        bubbles: true,
+        clientX: 10,
+        clientY: 10,
+      }),
+    );
+    expect(document.body.style.cursor).toBe("");
     vert.unmount();
+  });
+
+  test("resizable reports start, live, and end sizes", async () => {
+    const starts: number[][] = [];
+    const lives: number[][] = [];
+    const ends: number[][] = [];
+    const { root, unmount } = mountUi(() => (
+      <ResizablePanelGroup
+        orientation="horizontal"
+        onResizeStart={(startSize) => {
+          starts.push(startSize);
+        }}
+        onResize={(liveSize) => {
+          lives.push(liveSize);
+        }}
+        onResizeEnd={(endSize) => {
+          ends.push(endSize);
+        }}
+      >
+        <ResizablePanel defaultSize={30} minSize={10}>
+          A
+        </ResizablePanel>
+        <ResizableHandle />
+        <ResizablePanel defaultSize={70} minSize={10}>
+          B
+        </ResizablePanel>
+      </ResizablePanelGroup>
+    ));
+    const handle = root.querySelector(
+      '[data-slot="resizable-handle"]',
+    ) as HTMLElement;
+    const group = handle.parentElement!;
+    group.getBoundingClientRect = () =>
+      ({
+        width: 200,
+        height: 100,
+        top: 0,
+        left: 0,
+        bottom: 100,
+        right: 200,
+        x: 0,
+        y: 0,
+        toJSON: () => ({}),
+      }) as DOMRect;
+
+    handle.dispatchEvent(
+      new MouseEvent("pointerdown", {
+        bubbles: true,
+        clientX: 60,
+        clientY: 0,
+      }),
+    );
+    expect(starts).toEqual([[30, 70]]);
+    expect(lives).toEqual([]);
+
+    window.dispatchEvent(
+      new MouseEvent("pointermove", { clientX: 80, clientY: 0 }),
+    );
+    await nextTick();
+    expect(lives).toEqual([[40, 60]]);
+
+    window.dispatchEvent(
+      new MouseEvent("pointermove", { clientX: 0, clientY: 0 }),
+    );
+    await nextTick();
+    expect(lives).toHaveLength(2);
+    expect(lives[1]).toEqual([10, 90]);
+
+    window.dispatchEvent(
+      new MouseEvent("pointermove", { clientX: -20, clientY: 0 }),
+    );
+    await nextTick();
+    expect(lives).toHaveLength(2);
+
+    window.dispatchEvent(new MouseEvent("pointerup"));
+    expect(ends).toEqual([[10, 90]]);
+    unmount();
+  });
+
+  test("resizable snap collapses past minSize and fleche expands again", async () => {
+    const ends: number[][] = [];
+    const stubRect = (el: HTMLElement, width: number, height: number) => {
+      el.getBoundingClientRect = () =>
+        ({
+          width,
+          height,
+          top: 0,
+          left: 0,
+          bottom: height,
+          right: width,
+          x: 0,
+          y: 0,
+          toJSON: () => ({}),
+        }) as DOMRect;
+    };
+
+    const leftSnap = mountUi(() => (
+      <ResizablePanelGroup
+        orientation="horizontal"
+        onResizeEnd={(endSize) => {
+          ends.push(endSize);
+        }}
+      >
+        <ResizablePanel defaultSize={30} minSize={10} snap>
+          A
+        </ResizablePanel>
+        <ResizableHandle withHandle />
+        <ResizablePanel defaultSize={70} minSize={10}>
+          B
+        </ResizablePanel>
+      </ResizablePanelGroup>
+    ));
+    const leftHandle = leftSnap.root.querySelector(
+      '[data-slot="resizable-handle"]',
+    ) as HTMLElement;
+    const leftGroup = leftHandle.parentElement!;
+    const leftPanels = leftSnap.root.querySelectorAll(
+      '[data-slot="resizable-panel"]',
+    ) as NodeListOf<HTMLElement>;
+    stubRect(leftGroup, 200, 100);
+
+    leftHandle.dispatchEvent(
+      new MouseEvent("pointerdown", {
+        bubbles: true,
+        clientX: 60,
+        clientY: 0,
+      }),
+    );
+    window.dispatchEvent(
+      new MouseEvent("pointermove", { clientX: 20, clientY: 0 }),
+    );
+    await nextTick();
+    expect(leftPanels[0]?.style.flexBasis).toBe("10%");
+    expect(leftPanels[0]?.getAttribute("data-collapsed")).toBeNull();
+
+    window.dispatchEvent(
+      new MouseEvent("pointermove", { clientX: 0, clientY: 0 }),
+    );
+    await nextTick();
+    expect(leftPanels[0]?.style.flexBasis).toBe("0%");
+    expect(leftPanels[0]?.getAttribute("data-collapsed")).toBe("true");
+    expect(leftPanels[1]?.style.flexBasis).toBe("100%");
+
+    // Reverse drag must not reopen a snapped panel — only the expand grip can.
+    window.dispatchEvent(
+      new MouseEvent("pointermove", { clientX: -10, clientY: 0 }),
+    );
+    await nextTick();
+    expect(leftPanels[0]?.style.flexBasis).toBe("0%");
+    window.dispatchEvent(
+      new MouseEvent("pointermove", { clientX: 40, clientY: 0 }),
+    );
+    await nextTick();
+    expect(leftPanels[0]?.getAttribute("data-collapsed")).toBe("true");
+    expect(leftPanels[0]?.style.flexBasis).toBe("0%");
+    window.dispatchEvent(new MouseEvent("pointerup"));
+    await nextTick();
+
+    const leftExpand = leftSnap.root.querySelector(
+      '[data-slot="resizable-panel-expand"][data-side="start"]',
+    ) as HTMLButtonElement;
+    expect(leftExpand).toBeTruthy();
+    leftExpand.click();
+    await nextTick();
+    expect(leftPanels[0]?.getAttribute("data-collapsed")).toBeNull();
+    expect(leftPanels[0]?.style.flexBasis).toBe("30%");
+    expect(leftPanels[1]?.style.flexBasis).toBe("70%");
+    leftSnap.unmount();
+
+    const rightSnap = mountUi(() => (
+      <ResizablePanelGroup
+        orientation="horizontal"
+        onResizeEnd={(endSize) => {
+          ends.push(endSize);
+        }}
+      >
+        <ResizablePanel defaultSize={70} minSize={10}>
+          A
+        </ResizablePanel>
+        <ResizableHandle withHandle />
+        <ResizablePanel defaultSize={30} minSize={10} snap>
+          B
+        </ResizablePanel>
+      </ResizablePanelGroup>
+    ));
+    const rightHandle = rightSnap.root.querySelector(
+      '[data-slot="resizable-handle"]',
+    ) as HTMLElement;
+    const rightGroup = rightHandle.parentElement!;
+    const rightPanels = rightSnap.root.querySelectorAll(
+      '[data-slot="resizable-panel"]',
+    ) as NodeListOf<HTMLElement>;
+    stubRect(rightGroup, 200, 100);
+
+    rightHandle.dispatchEvent(
+      new MouseEvent("pointerdown", {
+        bubbles: true,
+        clientX: 140,
+        clientY: 0,
+      }),
+    );
+    window.dispatchEvent(
+      new MouseEvent("pointermove", { clientX: 180, clientY: 0 }),
+    );
+    await nextTick();
+    expect(rightPanels[1]?.style.flexBasis).toBe("10%");
+    window.dispatchEvent(
+      new MouseEvent("pointermove", { clientX: 200, clientY: 0 }),
+    );
+    await nextTick();
+    expect(rightPanels[1]?.style.flexBasis).toBe("0%");
+    expect(rightPanels[1]?.getAttribute("data-collapsed")).toBe("true");
+    expect(rightPanels[0]?.style.flexBasis).toBe("100%");
+
+    window.dispatchEvent(
+      new MouseEvent("pointermove", { clientX: 210, clientY: 0 }),
+    );
+    await nextTick();
+    expect(rightPanels[1]?.style.flexBasis).toBe("0%");
+    window.dispatchEvent(
+      new MouseEvent("pointermove", { clientX: 160, clientY: 0 }),
+    );
+    await nextTick();
+    expect(rightPanels[1]?.getAttribute("data-collapsed")).toBe("true");
+    expect(rightPanels[1]?.style.flexBasis).toBe("0%");
+    window.dispatchEvent(new MouseEvent("pointerup"));
+    await nextTick();
+
+    const expand = rightSnap.root.querySelector(
+      '[data-slot="resizable-panel-expand"][data-side="end"]',
+    ) as HTMLButtonElement;
+    expect(expand).toBeTruthy();
+    expand.click();
+    await nextTick();
+    expect(rightPanels[1]?.style.flexBasis).toBe("30%");
+    expect(rightPanels[1]?.getAttribute("data-collapsed")).toBeNull();
+    expect(rightPanels[0]?.style.flexBasis).toBe("70%");
+    expect(
+      rightSnap.root.querySelector('[data-slot="resizable-panel-expand"]'),
+    ).toBeNull();
+    expect(ends.at(-1)).toEqual([70, 30]);
+    rightSnap.unmount();
+
+    const vertical = mountUi(() => (
+      <ResizablePanelGroup orientation="vertical">
+        <ResizablePanel defaultSize={40} minSize={10} snap>
+          Top
+        </ResizablePanel>
+        <ResizableHandle withHandle />
+        <ResizablePanel defaultSize={60} minSize={10} snap>
+          Bottom
+        </ResizablePanel>
+      </ResizablePanelGroup>
+    ));
+    const vHandle = vertical.root.querySelector(
+      '[data-slot="resizable-handle"]',
+    ) as HTMLElement;
+    const vGroup = vHandle.parentElement!;
+    const vPanels = vertical.root.querySelectorAll(
+      '[data-slot="resizable-panel"]',
+    ) as NodeListOf<HTMLElement>;
+    stubRect(vGroup, 100, 200);
+
+    vHandle.dispatchEvent(
+      new MouseEvent("pointerdown", {
+        bubbles: true,
+        clientX: 10,
+        clientY: 80,
+      }),
+    );
+    window.dispatchEvent(
+      new MouseEvent("pointermove", { clientX: 10, clientY: 20 }),
+    );
+    window.dispatchEvent(
+      new MouseEvent("pointermove", { clientX: 10, clientY: 0 }),
+    );
+    await nextTick();
+    expect(vPanels[0]?.getAttribute("data-collapsed")).toBe("true");
+    window.dispatchEvent(new MouseEvent("pointerup"));
+    await nextTick();
+    const vExpand = vertical.root.querySelector(
+      '[data-slot="resizable-panel-expand"][data-side="start"]',
+    ) as HTMLButtonElement;
+    expect(vExpand).toBeTruthy();
+    vExpand.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true }));
+    vExpand.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await nextTick();
+    expect(vPanels[0]?.getAttribute("data-collapsed")).toBeNull();
+
+    vHandle.dispatchEvent(
+      new MouseEvent("pointerdown", {
+        bubbles: true,
+        clientX: 10,
+        clientY: 80,
+      }),
+    );
+    window.dispatchEvent(
+      new MouseEvent("pointermove", { clientX: 10, clientY: 180 }),
+    );
+    window.dispatchEvent(
+      new MouseEvent("pointermove", { clientX: 10, clientY: 200 }),
+    );
+    await nextTick();
+    expect(vPanels[1]?.getAttribute("data-collapsed")).toBe("true");
+    window.dispatchEvent(new MouseEvent("pointerup"));
+    await nextTick();
+    const vExpandEnd = vertical.root.querySelector(
+      '[data-slot="resizable-panel-expand"][data-side="end"]',
+    ) as HTMLButtonElement;
+    expect(vExpandEnd).toBeTruthy();
+    vExpandEnd.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true }));
+    vExpandEnd.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await nextTick();
+    expect(vPanels[1]?.getAttribute("data-collapsed")).toBeNull();
+    vertical.unmount();
+  });
+
+  test("resizable snap on every panel keeps one fleche and hides stacked seams", async () => {
+    const stubRect = (el: HTMLElement, width: number, height: number) => {
+      el.getBoundingClientRect = () =>
+        ({
+          width,
+          height,
+          top: 0,
+          left: 0,
+          bottom: height,
+          right: width,
+          x: 0,
+          y: 0,
+          toJSON: () => ({}),
+        }) as DOMRect;
+    };
+
+    const { root, unmount } = mountUi(() => (
+      <ResizablePanelGroup orientation="horizontal">
+        <ResizablePanel defaultSize={25} minSize={10} snap>
+          A
+        </ResizablePanel>
+        <ResizableHandle withHandle />
+        <ResizablePanel defaultSize={25} minSize={10} snap>
+          B
+        </ResizablePanel>
+        <ResizableHandle withHandle />
+        <ResizablePanel defaultSize={25} minSize={10} snap>
+          C
+        </ResizablePanel>
+        <ResizableHandle withHandle />
+        <ResizablePanel defaultSize={25} minSize={10} snap>
+          D
+        </ResizablePanel>
+      </ResizablePanelGroup>
+    ));
+
+    const group = root.querySelector(
+      '[data-slot="resizable-panel-group"]',
+    ) as HTMLElement;
+    const groupHandles = [
+      ...group.querySelectorAll(':scope > [data-slot="resizable-handle"]'),
+    ] as HTMLElement[];
+    const panels = [
+      ...group.querySelectorAll(':scope > [data-slot="resizable-panel"]'),
+    ] as HTMLElement[];
+    stubRect(group, 400, 100);
+    expect(groupHandles).toHaveLength(3);
+    expect(panels).toHaveLength(4);
+
+    const drag = (handle: HTMLElement, fromX: number, moves: number[]) => {
+      handle.dispatchEvent(
+        new MouseEvent("pointerdown", {
+          bubbles: true,
+          clientX: fromX,
+          clientY: 0,
+        }),
+      );
+      for (const x of moves) {
+        window.dispatchEvent(
+          new MouseEvent("pointermove", { clientX: x, clientY: 0 }),
+        );
+      }
+      window.dispatchEvent(new MouseEvent("pointerup"));
+    };
+
+    // Collapse A past min via handle 0
+    drag(groupHandles[0]!, 100, [40, -40]);
+    await nextTick();
+    expect(panels[0]?.getAttribute("data-collapsed")).toBe("true");
+    expect(panels[0]?.style.flexBasis).toBe("0%");
+    expect(panels[1]?.style.flexBasis).toBe("50%");
+    expect(
+      root.querySelectorAll('[data-slot="resizable-panel-expand"]'),
+    ).toHaveLength(1);
+    expect(groupHandles[0]?.querySelector('[data-side="start"]')).toBeTruthy();
+
+    // Collapse B past min via handle 1 (B is left of handle 1)
+    drag(groupHandles[1]!, 200, [40, -40]);
+    await nextTick();
+    expect(panels[1]?.getAttribute("data-collapsed")).toBe("true");
+    expect(panels[0]?.getAttribute("data-collapsed")).toBe("true");
+    expect(panels[1]?.style.flexBasis).toBe("0%");
+    // Seam between two collapsed panels is inert; only one fleche at the open edge
+    expect(groupHandles[0]?.getAttribute("data-collapsed-seam")).toBe("true");
+    expect(
+      root.querySelectorAll('[data-slot="resizable-panel-expand"]'),
+    ).toHaveLength(1);
+    expect(groupHandles[1]?.querySelector('[data-side="start"]')).toBeTruthy();
+
+    // Expanding B first (onion peel), then A
+    const expandB = groupHandles[1]?.querySelector(
+      '[data-slot="resizable-panel-expand"]',
+    ) as HTMLButtonElement;
+    expandB.click();
+    await nextTick();
+    expect(panels[1]?.getAttribute("data-collapsed")).toBeNull();
+    expect(
+      Number.parseFloat(panels[1]?.style.flexBasis ?? "0"),
+    ).toBeGreaterThan(0);
+    expect(panels[0]?.getAttribute("data-collapsed")).toBe("true");
+    expect(groupHandles[0]?.getAttribute("data-collapsed-seam")).toBeNull();
+    expect(groupHandles[0]?.querySelector('[data-side="start"]')).toBeTruthy();
+
+    const expandA = groupHandles[0]?.querySelector(
+      '[data-slot="resizable-panel-expand"]',
+    ) as HTMLButtonElement;
+    expandA.click();
+    await nextTick();
+    expect(panels[0]?.getAttribute("data-collapsed")).toBeNull();
+    expect(
+      root.querySelector('[data-slot="resizable-panel-expand"]'),
+    ).toBeNull();
+
+    const sum = [...panels].reduce(
+      (acc, panel) => acc + Number.parseFloat(panel.style.flexBasis),
+      0,
+    );
+    expect(sum).toBeCloseTo(100, 5);
+    unmount();
+  });
+
+  test("resizable snap reopen steals from the largest panel so each gets minSize", async () => {
+    const stubRect = (el: HTMLElement, width: number, height: number) => {
+      el.getBoundingClientRect = () =>
+        ({
+          width,
+          height,
+          top: 0,
+          left: 0,
+          bottom: height,
+          right: width,
+          x: 0,
+          y: 0,
+          toJSON: () => ({}),
+        }) as DOMRect;
+    };
+
+    const { root, unmount } = mountUi(() => (
+      <ResizablePanelGroup orientation="horizontal">
+        <ResizablePanel defaultSize={20} minSize={10} snap>
+          A
+        </ResizablePanel>
+        <ResizableHandle withHandle />
+        <ResizablePanel defaultSize={20} minSize={10} snap>
+          B
+        </ResizablePanel>
+        <ResizableHandle withHandle />
+        <ResizablePanel defaultSize={20} minSize={10} snap>
+          C
+        </ResizablePanel>
+        <ResizableHandle withHandle />
+        <ResizablePanel defaultSize={20} minSize={10} snap>
+          D
+        </ResizablePanel>
+        <ResizableHandle withHandle />
+        <ResizablePanel defaultSize={20} minSize={10} snap>
+          E
+        </ResizablePanel>
+      </ResizablePanelGroup>
+    ));
+
+    const group = root.querySelector(
+      '[data-slot="resizable-panel-group"]',
+    ) as HTMLElement;
+    const groupHandles = [
+      ...group.querySelectorAll(':scope > [data-slot="resizable-handle"]'),
+    ] as HTMLElement[];
+    const panels = [
+      ...group.querySelectorAll(':scope > [data-slot="resizable-panel"]'),
+    ] as HTMLElement[];
+    stubRect(group, 500, 100);
+
+    const collapseLeftOf = (handle: HTMLElement) => {
+      handle.dispatchEvent(
+        new MouseEvent("pointerdown", {
+          bubbles: true,
+          clientX: 250,
+          clientY: 0,
+        }),
+      );
+      // First move clamps down to minSize; second move while at minSize snaps shut.
+      window.dispatchEvent(
+        new MouseEvent("pointermove", { clientX: -500, clientY: 0 }),
+      );
+      window.dispatchEvent(
+        new MouseEvent("pointermove", { clientX: -501, clientY: 0 }),
+      );
+      window.dispatchEvent(new MouseEvent("pointerup"));
+    };
+
+    collapseLeftOf(groupHandles[0]!);
+    await nextTick();
+    expect(panels[0]?.getAttribute("data-collapsed")).toBe("true");
+    collapseLeftOf(groupHandles[1]!);
+    await nextTick();
+    expect(panels[1]?.getAttribute("data-collapsed")).toBe("true");
+    collapseLeftOf(groupHandles[2]!);
+    await nextTick();
+    expect(panels[2]?.getAttribute("data-collapsed")).toBe("true");
+    collapseLeftOf(groupHandles[3]!);
+    await nextTick();
+
+    expect(panels.map((p) => p.getAttribute("data-collapsed"))).toEqual([
+      "true",
+      "true",
+      "true",
+      "true",
+      null,
+    ]);
+    expect(
+      Number.parseFloat(panels[4]?.style.flexBasis ?? "0"),
+    ).toBeGreaterThan(90);
+
+    // Peel D, C, B, A back open — each must reach at least minSize by shrinking E
+    for (const expected of [3, 2, 1, 0]) {
+      const expand = root.querySelector(
+        '[data-slot="resizable-panel-expand"]',
+      ) as HTMLButtonElement;
+      expect(expand).toBeTruthy();
+      expand.click();
+      await nextTick();
+      expect(panels[expected]?.getAttribute("data-collapsed")).toBeNull();
+      expect(
+        Number.parseFloat(panels[expected]?.style.flexBasis ?? "0"),
+      ).toBeGreaterThanOrEqual(10);
+    }
+
+    expect(
+      root.querySelector('[data-slot="resizable-panel-expand"]'),
+    ).toBeNull();
+    expect(
+      Number.parseFloat(panels[4]?.style.flexBasis ?? "0"),
+    ).toBeGreaterThanOrEqual(10);
+    const sum = [...panels].reduce(
+      (acc, panel) => acc + Number.parseFloat(panel.style.flexBasis),
+      0,
+    );
+    expect(sum).toBeCloseTo(100, 5);
+    unmount();
+
+    // Force-shrink path: donor has no free space above minSize, but must still yield minSize
+    const forced = mountUi(() => (
+      <ResizablePanelGroup orientation="horizontal">
+        <ResizablePanel defaultSize={35} minSize={35} snap>
+          Small
+        </ResizablePanel>
+        <ResizableHandle />
+        <ResizablePanel defaultSize={65} minSize={70} snap>
+          Big
+        </ResizablePanel>
+      </ResizablePanelGroup>
+    ));
+    const forcedGroup = forced.root.querySelector(
+      '[data-slot="resizable-panel-group"]',
+    ) as HTMLElement;
+    const forcedHandle = forcedGroup.querySelector(
+      ':scope > [data-slot="resizable-handle"]',
+    ) as HTMLElement;
+    const forcedPanels = [
+      ...forcedGroup.querySelectorAll(':scope > [data-slot="resizable-panel"]'),
+    ] as HTMLElement[];
+    stubRect(forcedGroup, 200, 100);
+    collapseLeftOf(forcedHandle);
+    await nextTick();
+    expect(forcedPanels[0]?.getAttribute("data-collapsed")).toBe("true");
+    const forcedExpand = forced.root.querySelector(
+      '[data-slot="resizable-panel-expand"]',
+    ) as HTMLButtonElement;
+    forcedExpand.click();
+    await nextTick();
+    expect(forcedPanels[0]?.getAttribute("data-collapsed")).toBeNull();
+    expect(
+      Number.parseFloat(forcedPanels[0]?.style.flexBasis ?? "0"),
+    ).toBeGreaterThanOrEqual(35);
+    expect(
+      Number.parseFloat(forcedPanels[1]?.style.flexBasis ?? "100"),
+    ).toBeLessThan(70);
+    forced.unmount();
+
+    // Force path can empty a snap donor completely when expand needs more than free space
+    const emptied = mountUi(() => (
+      <ResizablePanelGroup orientation="horizontal">
+        <ResizablePanel defaultSize={50} minSize={100} snap>
+          NeedAll
+        </ResizablePanel>
+        <ResizableHandle />
+        <ResizablePanel defaultSize={50} minSize={10} snap>
+          Donor
+        </ResizablePanel>
+      </ResizablePanelGroup>
+    ));
+    const emptiedGroup = emptied.root.querySelector(
+      '[data-slot="resizable-panel-group"]',
+    ) as HTMLElement;
+    const emptiedHandle = emptiedGroup.querySelector(
+      ':scope > [data-slot="resizable-handle"]',
+    ) as HTMLElement;
+    const emptiedPanels = [
+      ...emptiedGroup.querySelectorAll(
+        ':scope > [data-slot="resizable-panel"]',
+      ),
+    ] as HTMLElement[];
+    stubRect(emptiedGroup, 200, 100);
+    collapseLeftOf(emptiedHandle);
+    await nextTick();
+    expect(emptiedPanels[0]?.getAttribute("data-collapsed")).toBe("true");
+    expect(emptiedPanels[1]?.style.flexBasis).toBe("100%");
+    const emptiedExpand = emptied.root.querySelector(
+      '[data-slot="resizable-panel-expand"]',
+    ) as HTMLButtonElement;
+    emptiedExpand.click();
+    await nextTick();
+    expect(emptiedPanels[0]?.getAttribute("data-collapsed")).toBeNull();
+    expect(emptiedPanels[0]?.style.flexBasis).toBe("100%");
+    expect(emptiedPanels[1]?.getAttribute("data-collapsed")).toBe("true");
+    expect(emptiedPanels[1]?.style.flexBasis).toBe("0%");
+    emptied.unmount();
+  });
+
+  test("resizable snap expand control uses neutral dots for edge and middle collapses", async () => {
+    const stubRect = (el: HTMLElement, width: number, height: number) => {
+      el.getBoundingClientRect = () =>
+        ({
+          width,
+          height,
+          top: 0,
+          left: 0,
+          bottom: height,
+          right: width,
+          x: 0,
+          y: 0,
+          toJSON: () => ({}),
+        }) as DOMRect;
+    };
+
+    const collapseLeftOf = (handle: HTMLElement) => {
+      handle.dispatchEvent(
+        new MouseEvent("pointerdown", {
+          bubbles: true,
+          clientX: 200,
+          clientY: 0,
+        }),
+      );
+      window.dispatchEvent(
+        new MouseEvent("pointermove", { clientX: -500, clientY: 0 }),
+      );
+      window.dispatchEvent(
+        new MouseEvent("pointermove", { clientX: -501, clientY: 0 }),
+      );
+      window.dispatchEvent(new MouseEvent("pointerup"));
+    };
+
+    const edge = mountUi(() => (
+      <ResizablePanelGroup orientation="horizontal">
+        <ResizablePanel defaultSize={40} minSize={10} snap>
+          A
+        </ResizablePanel>
+        <ResizableHandle withHandle />
+        <ResizablePanel defaultSize={60} minSize={10} snap>
+          B
+        </ResizablePanel>
+      </ResizablePanelGroup>
+    ));
+    const edgeGroup = edge.root.querySelector(
+      '[data-slot="resizable-panel-group"]',
+    ) as HTMLElement;
+    const edgeHandle = edgeGroup.querySelector(
+      ':scope > [data-slot="resizable-handle"]',
+    ) as HTMLElement;
+    stubRect(edgeGroup, 400, 100);
+    collapseLeftOf(edgeHandle);
+    await nextTick();
+    const edgeExpand = edge.root.querySelector(
+      '[data-slot="resizable-panel-expand"][data-side="start"]',
+    ) as HTMLElement;
+    expect(edgeExpand).toBeTruthy();
+    expect(edgeExpand.getAttribute("data-chevron")).toBeNull();
+    expect(edgeExpand.querySelector("svg")).toBeTruthy();
+    edge.unmount();
+
+    const { root, unmount } = mountUi(() => (
+      <ResizablePanelGroup orientation="horizontal">
+        <ResizablePanel defaultSize={50} minSize={10} snap>
+          A
+        </ResizablePanel>
+        <ResizableHandle withHandle />
+        <ResizablePanel defaultSize={25} minSize={10} snap>
+          B
+        </ResizablePanel>
+        <ResizableHandle withHandle />
+        <ResizablePanel defaultSize={25} minSize={10} snap>
+          C
+        </ResizablePanel>
+      </ResizablePanelGroup>
+    ));
+
+    const group = root.querySelector(
+      '[data-slot="resizable-panel-group"]',
+    ) as HTMLElement;
+    const handles = [
+      ...group.querySelectorAll(':scope > [data-slot="resizable-handle"]'),
+    ] as HTMLElement[];
+    const panels = [
+      ...group.querySelectorAll(':scope > [data-slot="resizable-panel"]'),
+    ] as HTMLElement[];
+    stubRect(group, 400, 100);
+
+    handles[0]!.dispatchEvent(
+      new MouseEvent("pointerdown", {
+        bubbles: true,
+        clientX: 200,
+        clientY: 0,
+      }),
+    );
+    window.dispatchEvent(
+      new MouseEvent("pointermove", { clientX: 360, clientY: 0 }),
+    );
+    window.dispatchEvent(
+      new MouseEvent("pointermove", { clientX: 361, clientY: 0 }),
+    );
+    window.dispatchEvent(new MouseEvent("pointerup"));
+    await nextTick();
+
+    expect(panels[1]?.getAttribute("data-collapsed")).toBe("true");
+
+    // Middle collapse keeps one seam; the duplicate stacked handle is inactive.
+    const endExpand = handles[0]?.querySelector(
+      '[data-slot="resizable-panel-expand"][data-side="end"]',
+    ) as HTMLButtonElement;
+    expect(endExpand).toBeTruthy();
+    expect(handles[1]?.getAttribute("data-collapsed-seam")).toBe("true");
+    expect(
+      handles[1]?.querySelector('[data-slot="resizable-panel-expand"]'),
+    ).toBeNull();
+    expect(
+      root.querySelectorAll('[data-slot="resizable-panel-expand"]'),
+    ).toHaveLength(1);
+    expect(handles[0]?.querySelector(".rounded-lg")).toBeTruthy();
+
+    // Drag must not reopen; only the expand grip click restores defaultSize.
+    handles[0]!.dispatchEvent(
+      new MouseEvent("pointerdown", {
+        bubbles: true,
+        clientX: 300,
+        clientY: 0,
+      }),
+    );
+    window.dispatchEvent(
+      new MouseEvent("pointermove", { clientX: 200, clientY: 0 }),
+    );
+    await nextTick();
+    expect(panels[1]?.getAttribute("data-collapsed")).toBe("true");
+    window.dispatchEvent(new MouseEvent("pointerup"));
+    await nextTick();
+
+    endExpand.click();
+    await nextTick();
+    expect(panels[1]?.getAttribute("data-collapsed")).toBeNull();
+    expect(panels[1]?.style.flexBasis).toBe("25%");
+    unmount();
+  });
+
+  test("resizable snap expand grip restores defaultSize and ignores drag", async () => {
+    const stubRect = (el: HTMLElement, width: number, height: number) => {
+      el.getBoundingClientRect = () =>
+        ({
+          width,
+          height,
+          top: 0,
+          left: 0,
+          bottom: height,
+          right: width,
+          x: 0,
+          y: 0,
+          toJSON: () => ({}),
+        }) as DOMRect;
+    };
+
+    const { root, unmount } = mountUi(() => (
+      <ResizablePanelGroup orientation="horizontal">
+        <ResizablePanel defaultSize={30} minSize={10} snap>
+          A
+        </ResizablePanel>
+        <ResizableHandle withHandle />
+        <ResizablePanel defaultSize={70} minSize={10}>
+          B
+        </ResizablePanel>
+      </ResizablePanelGroup>
+    ));
+    const group = root.querySelector(
+      '[data-slot="resizable-panel-group"]',
+    ) as HTMLElement;
+    const handle = group.querySelector(
+      ':scope > [data-slot="resizable-handle"]',
+    ) as HTMLElement;
+    const panels = [
+      ...group.querySelectorAll(':scope > [data-slot="resizable-panel"]'),
+    ] as HTMLElement[];
+    stubRect(group, 200, 100);
+
+    handle.dispatchEvent(
+      new MouseEvent("pointerdown", {
+        bubbles: true,
+        clientX: 60,
+        clientY: 0,
+      }),
+    );
+    window.dispatchEvent(
+      new MouseEvent("pointermove", { clientX: 20, clientY: 0 }),
+    );
+    window.dispatchEvent(
+      new MouseEvent("pointermove", { clientX: -20, clientY: 0 }),
+    );
+    window.dispatchEvent(new MouseEvent("pointerup"));
+    await nextTick();
+    expect(panels[0]?.getAttribute("data-collapsed")).toBe("true");
+
+    const expand = root.querySelector(
+      '[data-slot="resizable-panel-expand"]',
+    ) as HTMLButtonElement;
+    expect(expand).toBeTruthy();
+
+    expand.dispatchEvent(
+      new MouseEvent("pointerdown", {
+        bubbles: true,
+        clientX: 0,
+        clientY: 0,
+      }),
+    );
+    window.dispatchEvent(
+      new MouseEvent("pointermove", { clientX: 40, clientY: 0 }),
+    );
+    await nextTick();
+    expect(panels[0]?.getAttribute("data-collapsed")).toBe("true");
+    expect(panels[0]?.style.flexBasis).toBe("0%");
+    window.dispatchEvent(new MouseEvent("pointerup"));
+    await nextTick();
+
+    expand.click();
+    await nextTick();
+    expect(panels[0]?.getAttribute("data-collapsed")).toBeNull();
+    expect(panels[0]?.style.flexBasis).toBe("30%");
+    expect(panels[1]?.style.flexBasis).toBe("70%");
+    unmount();
   });
 
   test("command empty hides when items match and shows when none do", async () => {
@@ -1622,9 +3191,9 @@ describe("Toast Sidebar Resizable Command Combobox", () => {
     await Promise.resolve();
     await Promise.resolve();
     expect(root.querySelector('[data-slot="command-empty"]')).toBeNull();
-    expect(root.querySelector('[data-slot="command-item"]')?.textContent).toContain(
-      "Calendar",
-    );
+    expect(
+      root.querySelector('[data-slot="command-item"]')?.textContent,
+    ).toContain("Calendar");
 
     input.value = "zzz";
     input.dispatchEvent(new Event("input", { bubbles: true }));
@@ -1652,9 +3221,9 @@ describe("Toast Sidebar Resizable Command Combobox", () => {
     ));
     await Promise.resolve();
     await Promise.resolve();
-    expect(none.root.querySelector('[data-slot="command-empty"]')?.textContent).toBe(
-      "No results found.",
-    );
+    expect(
+      none.root.querySelector('[data-slot="command-empty"]')?.textContent,
+    ).toBe("No results found.");
     none.unmount();
   });
 
@@ -1784,9 +3353,9 @@ describe("Toast Sidebar Resizable Command Combobox", () => {
     await Promise.resolve();
     await Promise.resolve();
     expect(document.querySelector('[data-slot="combobox-empty"]')).toBeNull();
-    expect(document.querySelectorAll('[data-slot="combobox-item"]').length).toBe(
-      2,
-    );
+    expect(
+      document.querySelectorAll('[data-slot="combobox-item"]').length,
+    ).toBe(2);
 
     const input = root.querySelector("input") as HTMLInputElement;
     input.value = "zzz";
@@ -1825,9 +3394,370 @@ describe("Toast Sidebar Resizable Command Combobox", () => {
     ));
     await Promise.resolve();
     await Promise.resolve();
-    expect(document.querySelector('[data-slot="combobox-empty"]')?.textContent).toBe(
-      "No results.",
-    );
+    expect(
+      document.querySelector('[data-slot="combobox-empty"]')?.textContent,
+    ).toBe("No results.");
     none.unmount();
+  });
+});
+
+describe("Tooltip", () => {
+  test("bottom-side tooltip stays open over the whole trigger", async () => {
+    const { root, unmount } = mountUi(() => (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button size="sm">Bottom</Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" sideOffset={8}>
+            Bottom tip
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    ));
+    const trigger = root.querySelector("button") as HTMLButtonElement;
+    trigger.getBoundingClientRect = () =>
+      ({
+        x: 200,
+        y: 200,
+        top: 200,
+        left: 200,
+        bottom: 228,
+        right: 266,
+        width: 66,
+        height: 28,
+        toJSON() {
+          return {};
+        },
+      }) as DOMRect;
+    trigger.dispatchEvent(new MouseEvent("mouseenter", { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 20));
+    const tip = Array.from(
+      document.querySelectorAll('[data-slot="tooltip-content"]'),
+    ).find((el) => el.textContent?.includes("Bottom tip")) as HTMLElement;
+    expect(tip).toBeTruthy();
+    expect(tip.className).toContain("pointer-events-none");
+    const arrow = tip.querySelector(
+      '[data-slot="tooltip-arrow"]',
+    ) as HTMLElement;
+    expect(arrow).toBeTruthy();
+    expect(arrow.className).toContain("absolute");
+    expect(arrow.className).toContain("in-data-[side=bottom]:top-[-5px]");
+    tip.dispatchEvent(new MouseEvent("mouseenter", { bubbles: true }));
+    await Promise.resolve();
+    expect(tip.isConnected).toBe(true);
+    trigger.dispatchEvent(new MouseEvent("mouseleave", { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 250));
+    expect(tip.isConnected).toBe(false);
+    unmount();
+  });
+});
+
+describe("Navigation Menu", () => {
+  test("hover stays open while moving from the trigger into the panel", async () => {
+    const { root, unmount } = mountUi(() => (
+      <NavigationMenu viewport={false}>
+        <NavigationMenuList>
+          <NavigationMenuItem value="products">
+            <NavigationMenuTrigger>Products</NavigationMenuTrigger>
+            <NavigationMenuContent>
+              <NavigationMenuLink href="#sinwan">sinwan</NavigationMenuLink>
+            </NavigationMenuContent>
+          </NavigationMenuItem>
+        </NavigationMenuList>
+      </NavigationMenu>
+    ));
+    const item = root.querySelector(
+      '[data-slot="navigation-menu-item"]',
+    ) as HTMLElement;
+    const trigger = root.querySelector(
+      '[data-slot="navigation-menu-trigger"]',
+    ) as HTMLElement;
+    trigger.dispatchEvent(new MouseEvent("mouseenter", { bubbles: true }));
+    await Promise.resolve();
+    const panel = document.querySelector(
+      '[data-slot="navigation-menu-content"]',
+    ) as HTMLElement;
+    expect(panel).toBeTruthy();
+    expect(panel.className).toContain("pt-3");
+    expect(panel.className).toContain("start-0");
+    expect(panel.className).not.toContain("bg-popover");
+    expect(
+      panel.querySelector('[data-slot="navigation-menu-content-panel"]'),
+    ).toBeTruthy();
+    item.dispatchEvent(new MouseEvent("mouseleave", { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 40));
+    expect(
+      document.querySelector('[data-slot="navigation-menu-content"]'),
+    ).toBe(panel);
+    expect(panel.getAttribute("data-state")).toBe("open");
+    item.dispatchEvent(new MouseEvent("mouseenter", { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 150));
+    expect(panel.getAttribute("data-state")).toBe("open");
+    expect(
+      document.querySelector('[data-slot="navigation-menu-link"]'),
+    ).toBeTruthy();
+    item.dispatchEvent(new MouseEvent("mouseleave", { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 150));
+    expect(panel.getAttribute("data-state")).toBe("closed");
+    await new Promise((r) => setTimeout(r, 250));
+    expect(
+      document.querySelector('[data-slot="navigation-menu-content"]'),
+    ).toBeNull();
+    unmount();
+  });
+
+  test("hovering another trigger keeps that panel after the previous close timer", async () => {
+    const { root, unmount } = mountUi(() => (
+      <NavigationMenu viewport={false}>
+        <NavigationMenuList>
+          <NavigationMenuItem value="products">
+            <NavigationMenuTrigger>Products</NavigationMenuTrigger>
+            <NavigationMenuContent>
+              <NavigationMenuLink href="#a">A</NavigationMenuLink>
+            </NavigationMenuContent>
+          </NavigationMenuItem>
+          <NavigationMenuItem value="solutions">
+            <NavigationMenuTrigger>Solutions</NavigationMenuTrigger>
+            <NavigationMenuContent>
+              <NavigationMenuLink href="#b">B</NavigationMenuLink>
+            </NavigationMenuContent>
+          </NavigationMenuItem>
+        </NavigationMenuList>
+      </NavigationMenu>
+    ));
+    const items = root.querySelectorAll('[data-slot="navigation-menu-item"]');
+    const triggers = root.querySelectorAll(
+      '[data-slot="navigation-menu-trigger"]',
+    );
+    (triggers[0] as HTMLElement).dispatchEvent(
+      new MouseEvent("mouseenter", { bubbles: true }),
+    );
+    await Promise.resolve();
+    (items[0] as HTMLElement).dispatchEvent(
+      new MouseEvent("mouseleave", { bubbles: true }),
+    );
+    (triggers[1] as HTMLElement).dispatchEvent(
+      new MouseEvent("mouseenter", { bubbles: true }),
+    );
+    await new Promise((r) => setTimeout(r, 150));
+    const links = document.querySelectorAll(
+      '[data-slot="navigation-menu-link"]',
+    );
+    expect(Array.from(links).some((el) => el.textContent?.includes("B"))).toBe(
+      true,
+    );
+    unmount();
+  });
+
+  test("click pins the panel so mouseleave does not close it", async () => {
+    const { root, unmount } = mountUi(() => (
+      <NavigationMenu viewport={false}>
+        <NavigationMenuList>
+          <NavigationMenuItem value="products">
+            <NavigationMenuTrigger>Products</NavigationMenuTrigger>
+            <NavigationMenuContent>
+              <NavigationMenuLink href="#sinwan">sinwan</NavigationMenuLink>
+            </NavigationMenuContent>
+          </NavigationMenuItem>
+        </NavigationMenuList>
+      </NavigationMenu>
+    ));
+    const nav = root.querySelector(
+      '[data-slot="navigation-menu"]',
+    ) as HTMLElement;
+    const item = root.querySelector(
+      '[data-slot="navigation-menu-item"]',
+    ) as HTMLElement;
+    const trigger = root.querySelector(
+      '[data-slot="navigation-menu-trigger"]',
+    ) as HTMLElement;
+    trigger.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await Promise.resolve();
+    expect(nav.getAttribute("data-pinned")).toBe("");
+    expect(
+      document.querySelector('[data-slot="navigation-menu-content"]'),
+    ).toBeTruthy();
+    item.dispatchEvent(new MouseEvent("mouseleave", { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 150));
+    expect(
+      document.querySelector('[data-slot="navigation-menu-content"]'),
+    ).toBeTruthy();
+    expect(
+      document
+        .querySelector('[data-slot="navigation-menu-content"]')
+        ?.getAttribute("data-state"),
+    ).toBe("open");
+    document.body.dispatchEvent(
+      new MouseEvent("pointerdown", { bubbles: true }),
+    );
+    await Promise.resolve();
+    expect(nav.getAttribute("data-pinned")).toBeNull();
+    await new Promise((r) => setTimeout(r, 250));
+    expect(
+      document.querySelector('[data-slot="navigation-menu-content"]'),
+    ).toBeNull();
+    unmount();
+  });
+
+  test("clicking a pinned trigger closes and Escape dismisses", async () => {
+    const { root, unmount } = mountUi(() => (
+      <NavigationMenu viewport={false}>
+        <NavigationMenuList>
+          <NavigationMenuItem value="products">
+            <NavigationMenuTrigger>Products</NavigationMenuTrigger>
+            <NavigationMenuContent>
+              <NavigationMenuLink href="#a">A</NavigationMenuLink>
+            </NavigationMenuContent>
+          </NavigationMenuItem>
+        </NavigationMenuList>
+      </NavigationMenu>
+    ));
+    const trigger = root.querySelector(
+      '[data-slot="navigation-menu-trigger"]',
+    ) as HTMLElement;
+    trigger.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await Promise.resolve();
+    trigger.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 250));
+    expect(
+      document.querySelector('[data-slot="navigation-menu-content"]'),
+    ).toBeNull();
+    trigger.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await Promise.resolve();
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    await new Promise((r) => setTimeout(r, 250));
+    expect(
+      document.querySelector('[data-slot="navigation-menu-content"]'),
+    ).toBeNull();
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab" }));
+    document.body.dispatchEvent(
+      new MouseEvent("pointerdown", { bubbles: true }),
+    );
+    unmount();
+  });
+
+  test("pointerdown inside the menu or an exempt layer does not dismiss", async () => {
+    const { root, unmount } = mountUi(() => (
+      <NavigationMenu viewport={false}>
+        <NavigationMenuList>
+          <NavigationMenuItem value="products">
+            <NavigationMenuTrigger>Products</NavigationMenuTrigger>
+            <NavigationMenuContent>
+              <NavigationMenuLink href="#a">A</NavigationMenuLink>
+            </NavigationMenuContent>
+          </NavigationMenuItem>
+        </NavigationMenuList>
+      </NavigationMenu>
+    ));
+    const trigger = root.querySelector(
+      '[data-slot="navigation-menu-trigger"]',
+    ) as HTMLElement;
+    trigger.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await Promise.resolve();
+    const panel = document.querySelector(
+      '[data-slot="navigation-menu-content-panel"]',
+    ) as HTMLElement;
+    panel.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true }));
+    await Promise.resolve();
+    expect(
+      document.querySelector('[data-slot="navigation-menu-content"]'),
+    ).toBeTruthy();
+    const exempt = document.createElement("div");
+    exempt.setAttribute("data-slot", "dropdown-menu-content");
+    document.body.appendChild(exempt);
+    exempt.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true }));
+    await Promise.resolve();
+    expect(
+      document.querySelector('[data-slot="navigation-menu-content"]'),
+    ).toBeTruthy();
+    exempt.remove();
+    unmount();
+  });
+
+  test("inherits RTL direction and logical panel alignment", async () => {
+    const { root, unmount } = mountUi(() => (
+      <DirectionProvider dir="rtl">
+        <NavigationMenu viewport={false}>
+          <NavigationMenuList>
+            <NavigationMenuItem value="home">
+              <NavigationMenuTrigger>الرئيسية</NavigationMenuTrigger>
+              <NavigationMenuContent>
+                <NavigationMenuLink href="#a">مقدمة</NavigationMenuLink>
+              </NavigationMenuContent>
+            </NavigationMenuItem>
+          </NavigationMenuList>
+        </NavigationMenu>
+      </DirectionProvider>
+    ));
+    const nav = root.querySelector(
+      '[data-slot="navigation-menu"]',
+    ) as HTMLElement;
+    expect(nav.getAttribute("dir")).toBe("rtl");
+    const trigger = root.querySelector(
+      '[data-slot="navigation-menu-trigger"]',
+    ) as HTMLElement;
+    trigger.dispatchEvent(new MouseEvent("mouseenter", { bubbles: true }));
+    await Promise.resolve();
+    const panel = document.querySelector(
+      '[data-slot="navigation-menu-content"]',
+    ) as HTMLElement;
+    expect(panel.className).toContain("start-0");
+    expect(panel.className).toContain("text-start");
+    expect(panel.getAttribute("style") ?? "").toContain("inset-inline-start");
+    expect(trigger.querySelector("svg")?.className).toContain("ms-1");
+    unmount();
+  });
+
+  test("hovering another item while pinned keeps the new panel after leave", async () => {
+    const { root, unmount } = mountUi(() => (
+      <NavigationMenu viewport={false}>
+        <NavigationMenuList>
+          <NavigationMenuItem value="products">
+            <NavigationMenuTrigger>Products</NavigationMenuTrigger>
+            <NavigationMenuContent>
+              <NavigationMenuLink href="#a">A</NavigationMenuLink>
+            </NavigationMenuContent>
+          </NavigationMenuItem>
+          <NavigationMenuItem value="solutions">
+            <NavigationMenuTrigger>Solutions</NavigationMenuTrigger>
+            <NavigationMenuContent>
+              <NavigationMenuLink href="#b">B</NavigationMenuLink>
+            </NavigationMenuContent>
+          </NavigationMenuItem>
+        </NavigationMenuList>
+      </NavigationMenu>
+    ));
+    const items = root.querySelectorAll('[data-slot="navigation-menu-item"]');
+    const triggers = root.querySelectorAll(
+      '[data-slot="navigation-menu-trigger"]',
+    );
+    (triggers[0] as HTMLElement).dispatchEvent(
+      new MouseEvent("click", { bubbles: true }),
+    );
+    await Promise.resolve();
+    (items[0] as HTMLElement).dispatchEvent(
+      new MouseEvent("mouseleave", { bubbles: true }),
+    );
+    (triggers[1] as HTMLElement).dispatchEvent(
+      new MouseEvent("mouseenter", { bubbles: true }),
+    );
+    await Promise.resolve();
+    (items[1] as HTMLElement).dispatchEvent(
+      new MouseEvent("mouseleave", { bubbles: true }),
+    );
+    await new Promise((r) => setTimeout(r, 150));
+    const links = document.querySelectorAll(
+      '[data-slot="navigation-menu-link"]',
+    );
+    expect(Array.from(links).some((el) => el.textContent?.includes("B"))).toBe(
+      true,
+    );
+    expect(
+      root
+        .querySelector('[data-slot="navigation-menu"]')
+        ?.getAttribute("data-pinned"),
+    ).toBe("");
+    unmount();
   });
 });

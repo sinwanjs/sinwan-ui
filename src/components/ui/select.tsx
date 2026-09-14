@@ -5,7 +5,7 @@ import { Check, ChevronDown, ChevronUp, type IconNode } from "lucide";
 import { Icon } from "../../icons";
 import { cn } from "../../lib/utils";
 import { createLiveState, type Live } from "../../lib/live-state";
-import { UiPortal, useAnchorPosition } from "../../primitives";
+import { Presence, UiPortal, useAnchorPosition } from "../../primitives";
 import { isDismissExemptPointerTarget } from "../../primitives/dismiss";
 
 type SelectApi = {
@@ -234,7 +234,7 @@ const SelectContent = cc<SelectContentProps>((props) => {
   const api = inject(SelectKey)!;
   let viewportNode: HTMLElement | null = null;
   let viewportObserver: ResizeObserver | null = null;
-  const { style, present, side } = useAnchorPosition({
+  const { style, side } = useAnchorPosition({
     open: () => api.open.value,
     trigger: () => api.triggerEl.value,
     content: () => api.contentEl.value,
@@ -244,6 +244,9 @@ const SelectContent = cc<SelectContentProps>((props) => {
     fallbackSize: { width: 144, height: 200 },
     extra: selectContentMinWidth,
   });
+  function selectState() {
+    return api.open.value ? "open" : "closed";
+  }
   const onViewportScroll = () => {
     syncSelectViewportScroll(api, viewportNode);
   };
@@ -260,6 +263,7 @@ const SelectContent = cc<SelectContentProps>((props) => {
     api.viewportEl.value = el;
     if (!el) {
       syncSelectViewportScroll(api, null);
+      stepSelectAutoScroll();
       return;
     }
     viewportNode = el;
@@ -328,15 +332,19 @@ const SelectContent = cc<SelectContentProps>((props) => {
   });
 
   return (
-    <Show when={() => present.value} fallback={null}>
+    <Presence
+      // @ts-expect-error live open getter
+      present={() => api.open.value}
+    >
       <UiPortal>
         <div
           data-slot="select-content"
+          data-state={selectState}
           data-side={() => side.value}
           data-align-trigger={position === "item-aligned" ? "" : undefined}
           role="listbox"
           class={cn(
-            "relative z-50 isolate flex max-h-72 min-w-36 flex-col overflow-hidden rounded-lg bg-popover text-popover-foreground shadow-md ring-1 ring-foreground/10 duration-100 data-[side=bottom]:slide-in-from-top-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95",
+            "relative z-50 isolate flex max-h-72 min-w-36 flex-col overflow-hidden rounded-lg bg-popover text-popover-foreground shadow-md ring-1 ring-foreground/10 duration-200 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 data-closed:!fill-mode-forwards",
             className,
           )}
           style={() => style.value as unknown as string}
@@ -357,7 +365,7 @@ const SelectContent = cc<SelectContentProps>((props) => {
           <SelectScrollDownButton />
         </div>
       </UiPortal>
-    </Show>
+    </Presence>
   );
 });
 

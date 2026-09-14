@@ -317,6 +317,68 @@
   filter: grayscale(1);
 }
 
+@utility scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  &::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+}
+
+@utility no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  &::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+}
+
+@utility scrollbar-modern {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklch, var(--foreground) 22%, transparent) transparent;
+  &::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background-clip: padding-box;
+    background-color: color-mix(in oklch, var(--foreground) 20%, transparent);
+    border: 2px solid transparent;
+    border-radius: 999px;
+  }
+  &:hover::-webkit-scrollbar-thumb {
+    background-color: color-mix(in oklch, var(--foreground) 36%, transparent);
+  }
+}
+
+@utility scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklch, var(--foreground) 22%, transparent) transparent;
+  &::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background-clip: padding-box;
+    background-color: color-mix(in oklch, var(--foreground) 20%, transparent);
+    border: 2px solid transparent;
+    border-radius: 999px;
+  }
+  &:hover::-webkit-scrollbar-thumb {
+    background-color: color-mix(in oklch, var(--foreground) 36%, transparent);
+  }
+}
+
 /* -----------------------------------------------------------------------
  * 8. Overlay exit-animation fix
  * ---------------------------------------------------------------------
@@ -332,7 +394,18 @@
   [data-slot="alert-dialog-content"],
   [data-slot="drawer-content"],
   [data-slot="popover-content"],
-  [data-slot="tooltip-content"]) {
+  [data-slot="tooltip-content"],
+  [data-slot="dropdown-menu-content"],
+  [data-slot="dropdown-menu-sub-content"],
+  [data-slot="context-menu-content"],
+  [data-slot="context-menu-sub-content"],
+  [data-slot="menubar-content"],
+  [data-slot="menubar-sub-content"],
+  [data-slot="select-content"],
+  [data-slot="navigation-menu-content"],
+  [data-slot="navigation-menu-viewport"],
+  [data-slot="accordion-content"],
+  [data-slot="collapsible-content"]) {
   animation-fill-mode: forwards !important;
 }
 
@@ -401,5 +474,30 @@
 
   [dir="rtl"] [data-slot="table-container"]>[data-slot="table"] {
     direction: rtl;
+  }
+
+  /*
+   * <Virtual> injects an unstyled overflow:auto scroller. Match the table
+   * chrome: reserve a stable gutter so the sticky header aligns, and keep
+   * the thumb inside the rounded frame.
+   */
+  [data-virtual-header],
+  [data-slot="data-table-virtual-body"]>div {
+    scrollbar-width: thin;
+    scrollbar-gutter: stable;
+    scrollbar-color: color-mix(in oklch, var(--border) 85%, transparent) transparent;
+  }
+
+  [data-virtual-header] {
+    overflow-y: scroll;
+  }
+
+  [data-virtual-header]::-webkit-scrollbar,
+  [data-slot="data-table-virtual-body"]>div::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  [data-virtual-header]::-webkit-scrollbar-thumb {
+    background: transparent;
   }
 }

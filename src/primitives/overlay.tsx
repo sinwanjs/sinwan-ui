@@ -340,6 +340,21 @@ export const CollapsibleContent = cc<{
   function stateAttr() {
     return api.open.value ? "open" : "closed";
   }
+  function bindContent(el: HTMLElement | null) {
+    if (el == null) return;
+    const node = el;
+    function measure() {
+      const inner = node.firstElementChild;
+      const height =
+        inner instanceof HTMLElement ? inner.scrollHeight : node.scrollHeight;
+      node.style.setProperty(
+        "--radix-collapsible-content-height",
+        `${height}px`,
+      );
+    }
+    measure();
+    requestAnimationFrame(measure);
+  }
   return (
     <Presence
       // @ts-expect-error live open getter
@@ -349,6 +364,7 @@ export const CollapsibleContent = cc<{
         data-slot="collapsible-content"
         data-state={stateAttr}
         class={className}
+        ref={bindContent}
       >
         {children}
       </div>
@@ -560,7 +576,8 @@ export const TooltipContent = cc<{
   children?: SinwanNode;
   class?: string;
   side?: Placement;
-}>(({ children, class: className, side = "top" }) => {
+  sideOffset?: number;
+}>(({ children, class: className, side = "top", sideOffset = 8 }) => {
   const api = inject(TooltipKey)!;
   const contentEl = signal<HTMLElement | null>(null);
   const { style, side: resolvedSide } = useAnchorPosition({
@@ -569,7 +586,7 @@ export const TooltipContent = cc<{
     content: () => contentEl.value,
     placement: side,
     align: "center",
-    gap: 6,
+    gap: sideOffset,
     fallbackSize: { width: 120, height: 32 },
   });
 

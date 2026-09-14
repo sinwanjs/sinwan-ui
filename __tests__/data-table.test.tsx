@@ -487,4 +487,154 @@ describe("DataTable", () => {
     await flush();
     unmount();
   });
+
+  test("windows body rows with Sinwan Virtual and keeps hide in sync", async () => {
+    const many = Array.from({ length: 80 }, (_, index) => ({
+      id: `virt-${index}`,
+      amount: index,
+      status: "pending",
+      email: `user${index}@mail.test`,
+    }));
+    const { root, unmount } = mountUi(() => (
+      <DataTable
+        columns={columns}
+        data={many}
+        virtual={{ itemHeight: 40, containerHeight: 120, overscan: 1 }}
+        getRowId={(row) => row.id}
+      />
+    ));
+    await flush();
+    expect(root.querySelector('[data-slot="data-table-pagination"]')).toBeNull();
+    expect(root.querySelector('[data-slot="data-table-virtual-body"]')).toBeTruthy();
+    const frame = root.querySelector('[data-slot="data-table-frame"]');
+    expect(frame?.className).toContain("rounded-md");
+    expect(frame?.className).toContain("overflow-hidden");
+    expect(
+      root.querySelector("[data-virtual-header]")?.className,
+    ).toContain("bg-muted/50");
+    const renderedRows = root.querySelectorAll(
+      '[data-slot="data-table-virtual-body"] [data-slot="table-row"]',
+    );
+    expect(renderedRows.length).toBeGreaterThan(0);
+    expect(renderedRows.length).toBeLessThan(many.length);
+    expect(
+      root.querySelector('[data-slot="table-body"] [data-column-id="email"]'),
+    ).toBeTruthy();
+
+    const scroller = root.querySelector(
+      '[data-slot="data-table-virtual-body"] > div',
+    ) as HTMLElement;
+    scroller.scrollTop = 400;
+    scroller.dispatchEvent(new Event("scroll", { bubbles: true }));
+    await flush();
+    expect(
+      root.querySelector('[data-slot="data-table-virtual-body"] [data-slot="table-row"]'),
+    ).toBeTruthy();
+
+    triggerByText(root, "View").dispatchEvent(
+      new MouseEvent("click", { bubbles: true }),
+    );
+    await flush();
+    const amountItem = Array.from(
+      document.querySelectorAll('[data-slot="dropdown-menu-checkbox-item"]'),
+    ).find((node) => node.textContent?.toLowerCase().includes("amount"));
+    amountItem?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await flush();
+    expect(
+      root.querySelector('[data-slot="table-header"] [data-column-id="amount"]'),
+    ).toBeNull();
+    expect(
+      root.querySelector('[data-slot="table-body"] [data-column-id="amount"]'),
+    ).toBeNull();
+    expect(
+      root.querySelector('[data-slot="table-body"] [data-column-id="email"]'),
+    ).toBeTruthy();
+    unmount();
+
+    const empty = mountUi(() => (
+      <DataTable
+        columns={columns}
+        data={[]}
+        virtual
+        hideToolbar
+        empty="No virtual rows."
+      />
+    ));
+    expect(
+      empty.root.querySelector('[data-slot="data-table-empty"]')?.textContent,
+    ).toBe("No virtual rows.");
+    const defaultScroller = empty.root.querySelector(
+      '[data-slot="data-table-virtual-body"] > div',
+    ) as HTMLElement;
+    expect(defaultScroller.style.height).toBe("384px");
+    empty.unmount();
+
+    const fallbacks = mountUi(() => (
+      <DataTable
+        columns={columns}
+        data={many.slice(0, 8)}
+        virtual={{
+          itemHeight: 0,
+          containerHeight: Number.NaN,
+          overscan: -2,
+          minRendered: -1,
+        }}
+        hideToolbar
+        getRowId={(row) => row.id}
+      />
+    ));
+    const fallbackScroller = fallbacks.root.querySelector(
+      '[data-slot="data-table-virtual-body"] > div',
+    ) as HTMLElement;
+    expect(fallbackScroller.style.height).toBe("384px");
+    fallbacks.unmount();
+
+    const minRendered = mountUi(() => (
+      <DataTable
+        columns={columns}
+        data={many.slice(0, 6)}
+        virtual={{
+          itemHeight: 40,
+          containerHeight: 40,
+          overscan: 0,
+          minRendered: 4,
+        }}
+        hideToolbar
+        getRowId={(row) => row.id}
+      />
+    ));
+    expect(
+      minRendered.root.querySelectorAll(
+        '[data-slot="data-table-virtual-body"] [data-slot="table-row"]',
+      ).length,
+    ).toBeGreaterThanOrEqual(4);
+    minRendered.unmount();
+
+    const grouped = mountUi(() => (
+      <DataTable
+        columns={groupedColumns}
+        data={payments.slice(0, 2)}
+        virtual={{ itemHeight: 40, containerHeight: 80, overscan: 0 }}
+        hideToolbar
+      />
+    ));
+    expect(grouped.root.textContent).toContain("Info");
+    grouped.unmount();
+
+    const off = mountUi(() => (
+      <DataTable
+        columns={columns}
+        data={payments.slice(0, 2)}
+        virtual={false}
+        hideToolbar
+        hidePagination
+      />
+    ));
+    expect(off.root.querySelector('[data-slot="data-table-virtual-body"]')).toBeNull();
+    expect(off.root.querySelector("table")).toBeTruthy();
+    expect(off.root.querySelector('[data-slot="data-table-frame"]')?.className).toContain(
+      "overflow-hidden",
+    );
+    off.unmount();
+  });
 });

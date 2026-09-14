@@ -1,5 +1,5 @@
 import { getRawProps, type SinwanNode } from "sinwan/component";
-import { ChevronDown, ChevronUp } from "lucide";
+import { ChevronDown } from "lucide";
 
 import { Icon } from "@/icons";
 import { cn } from "@/lib/utils";
@@ -39,7 +39,7 @@ type AccordionItemProps = {
 function AccordionItem({ class: className, ...props }: AccordionItemProps) {
   return (
     <AccordionItemPrimitive
-      class={cn("not-last:border-b", className)}
+      class={cn("group/accordion-item not-last:border-b", className)}
       {...props}
     />
   );
@@ -59,7 +59,7 @@ function AccordionTrigger({
     <div class="flex">
       <AccordionTriggerPrimitive
         class={cn(
-          "group/accordion-trigger relative flex flex-1 items-start justify-between rounded-lg border border-transparent py-2.5 text-left text-sm font-medium transition-all outline-none hover:underline focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:after:border-ring disabled:pointer-events-none disabled:opacity-50 **:data-[slot=accordion-trigger-icon]:ml-auto **:data-[slot=accordion-trigger-icon]:size-4 **:data-[slot=accordion-trigger-icon]:text-muted-foreground",
+          "group/accordion-trigger relative flex flex-1 items-start justify-between rounded-lg border border-transparent py-2.5 text-left text-sm font-medium transition-all outline-none hover:underline focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:after:border-ring disabled:pointer-events-none disabled:opacity-50 **:data-[slot=accordion-trigger-icon]:ml-auto **:data-[slot=accordion-trigger-icon]:size-4 **:data-[slot=accordion-trigger-icon]:text-muted-foreground aria-expanded:**:data-[slot=accordion-trigger-icon]:rotate-180",
           className,
         )}
         {...props}
@@ -68,12 +68,7 @@ function AccordionTrigger({
         <Icon
           icon={ChevronDown}
           data-slot="accordion-trigger-icon"
-          class="pointer-events-none shrink-0 group-aria-expanded/accordion-trigger:hidden"
-        />
-        <Icon
-          icon={ChevronUp}
-          data-slot="accordion-trigger-icon"
-          class="pointer-events-none hidden shrink-0 group-aria-expanded/accordion-trigger:inline"
+          class="pointer-events-none shrink-0 transition-transform duration-200 group-data-open/accordion-item:rotate-180"
         />
       </AccordionTriggerPrimitive>
     </div>
@@ -92,7 +87,7 @@ function AccordionContent({
 }: AccordionContentProps) {
   return (
     <AccordionContentPrimitive
-      class="overflow-hidden text-sm data-open:animate-accordion-down data-closed:animate-accordion-up"
+      class="overflow-hidden text-sm duration-200 data-open:animate-accordion-down data-closed:animate-accordion-up data-closed:!fill-mode-forwards"
       {...props}
     >
       <div

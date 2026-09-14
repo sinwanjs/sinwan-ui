@@ -30,6 +30,14 @@ describe("isDismissExemptPointerTarget", () => {
     document.body.appendChild(menu);
     expect(isDismissExemptPointerTarget(menu)).toBe(true);
 
+    const menubar = document.createElement("div");
+    menubar.setAttribute("data-slot", "menubar-content");
+    const menubarItem = document.createElement("button");
+    menubar.appendChild(menubarItem);
+    document.body.appendChild(menubar);
+    expect(isDismissExemptPointerTarget(menubar)).toBe(true);
+    expect(isDismissExemptPointerTarget(menubarItem)).toBe(true);
+
     const select = document.createElement("select");
     const option = document.createElement("option");
     select.appendChild(option);
