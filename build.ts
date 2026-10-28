@@ -1,8 +1,8 @@
-import { $ } from "bun";
-import { rm } from "node:fs/promises";
-import { sinwan } from "bun-plugin-sinwan";
+import { chmod, rm } from "node:fs/promises";
+import { checkCliBundle } from "./scripts/dist-check";
 
 const ROOT = import.meta.dir;
+const SRC = `${ROOT}/src`;
 const DIST = `${ROOT}/dist`;
 
 async function cleanDist(): Promise<void> {
@@ -10,39 +10,26 @@ async function cleanDist(): Promise<void> {
   await rm(DIST, { recursive: true, force: true });
 }
 
-async function emitDeclarations(): Promise<void> {
-  console.log("Emitting type declarations");
-  await $`bunx tsc -p tsconfig.build.json`.cwd(ROOT);
-}
-
-async function buildBundle(): Promise<void> {
-  console.log("Bundling with Bun.build + sinwan compiler");
+async function buildCli(): Promise<void> {
+  console.log("Bundling CLI -> dist/cli.js");
   const result = await Bun.build({
-    entrypoints: [`${ROOT}/src/index.ts`],
+    entrypoints: [`${SRC}/bin.ts`],
     outdir: DIST,
-    root: `${ROOT}/src`,
-    target: "browser",
-    sourcemap: "linked",
-    plugins: [sinwan({ dev: false })],
-    external: [
-      "sinwan",
-      "sinwan/reactivity",
-      "sinwan/component",
-      "sinwan/jsx-runtime",
-      "sinwan/jsx-dev-runtime",
-      "sinwan/renderer",
-    ],
+    target: "bun",
+    naming: "cli.js",
   });
   if (!result.success) {
     for (const log of result.logs) console.error(log);
-    throw new Error("Bun.build failed");
+    throw new Error("CLI Bun.build failed");
   }
+  const problems = checkCliBundle(await Bun.file(`${DIST}/cli.js`).text());
+  if (problems.length > 0) throw new Error(problems.join("\n"));
+  await chmod(`${DIST}/cli.js`, 0o755);
 }
 
 async function main(): Promise<void> {
   await cleanDist();
-  await emitDeclarations();
-  await buildBundle();
+  await buildCli();
   console.log("Build complete -> dist/");
 }
 

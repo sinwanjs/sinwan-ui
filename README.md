@@ -1,69 +1,66 @@
 # sinwan-ui
 
-Sinwan-native UI components (shadcn-inspired) with light / dark / system theming.
+The CLI of the sinwan-ui component registry. Like `shadcn`, it copies component source into your
+Sinwan app instead of installing a component library. You own the copied files and can edit them
+freely. Only the npm packages those files import get installed.
 
-## Install
+- Components live in [`sinwan-ui-registry`](https://github.com/sinwanjs/sinwan-ui-registry) and are served as JSON from raw GitHub, by tag.
+- Headless behaviour (Presence, portals, dismiss, floating positioning, submenus, theme and direction) comes from the [`sinwan-ui-core`](https://www.npmjs.com/package/sinwan-ui-core) npm package, which `init` installs.
+
+## Quick start
 
 ```bash
-bun add sinwan-ui sinwan
+bunx sinwan-ui init                # sinwan-ui.json, @/* alias, sinwan-ui-core, utils + theme
+bunx sinwan-ui add button dialog   # items plus their registry dependencies
+bunx sinwan-ui add                 # pick items interactively
+bunx sinwan-ui add --all           # every item
 ```
 
-Peer dependency: `sinwan` `>=1.3 <2`.
+`init` adds the `@/*` alias when it is missing: `compilerOptions.paths` in tsconfig/jsconfig and, for Vite, the `@` entry in `resolve.alias` of `vite.config.*`. It asks before each edit in a terminal; `--yes` applies them.
 
-## Setup
+## Commands
 
-1. Import styles in your app entry:
+| Command | What it does |
+| --- | --- |
+| `init [--yes] [--defaults]` | Creates `sinwan-ui.json`, makes sure `@/*` resolves through `tsconfig.json`/`jsconfig.json` `paths`, installs `sinwan-ui-core`, writes `utils` and the theme stylesheet and links it into your entry CSS |
+| `add [items...]` | Adds items by name, `@namespace/name`, URL or local `./item.json`, with their registry dependencies; `--all`, `--path <dir>`, `--overwrite`, `--dry-run` |
+| `list` / `search <query>` | Lists registry items (✓ marks installed ones) / filters them by name, title and description |
+| `view <items...>` | Prints item JSON, files included |
+| `diff [item]` | Without an item: installed items that differ upstream. With an item: a unified diff (exit code 1 when it differs) |
+| `build [registry.json] [--output <dir>]` | Builds `public/r/*.json` and `index.json` from a `registry.json` manifest, for your own registry |
 
-```ts
-import "sinwan-ui/styles.css";
+Run `bunx sinwan-ui --help` for every flag, including `--cwd`, `--registry <url-or-dir>` and `--ref <tag-or-branch>`.
+
+## `sinwan-ui.json`
+
+```json
+{
+  "$schema": "https://raw.githubusercontent.com/sinwanjs/sinwan-ui-registry/main/schema.json",
+  "tsx": true,
+  "tailwind": { "css": "src/styles/global.css" },
+  "aliases": {
+    "components": "@/components",
+    "ui": "@/components/ui",
+    "lib": "@/lib",
+    "utils": "@/lib/utils",
+    "hooks": "@/hooks"
+  },
+  "registries": { "@acme": "https://acme.dev/r/{name}.json" },
+  "packageManager": "bun"
+}
 ```
 
-2. Wrap the app with `ThemeProvider`:
+- **`aliases`**: where items land. Imports in copied files are rewritten to these aliases, and each alias is resolved to a directory through your tsconfig/jsconfig `paths`.
+- **`tsx: false`**: copies `.jsx`/`.js` instead of `.tsx`/`.ts`. `init` picks it automatically for projects that only have a `jsconfig.json`.
+- **`registries`**: extra namespaced registries for `add @acme/name`.
 
-```tsx
-import { ThemeProvider, Button, ThemeToggle } from "sinwan-ui";
-import { mount } from "sinwan/renderer";
-
-const App = () => (
-  <ThemeProvider defaultTheme="system">
-    <Button variant="gradient">Hello</Button>
-    <ThemeToggle />
-  </ThemeProvider>
-);
-
-mount(App, document.getElementById("app")!);
-```
-
-3. Build / serve with **`bun-plugin-sinwan`** so the Sinwan compiler runs (JSX, reactivity hoisting):
-
-```ts
-import { sinwan } from "bun-plugin-sinwan";
-
-await Bun.build({
-  entrypoints: ["./src/index.tsx"],
-  outdir: "./dist",
-  plugins: [sinwan()],
-  external: ["sinwan", "sinwan-ui"],
-});
-```
-
-## Theming
-
-- CSS variables in `sinwan-ui/styles.css` (`.dark` / `.light` on `<html>`)
-- `ThemeProvider` + `useTheme()` — `theme`, `resolved`, `setTheme("light" | "dark" | "system")`
-- `DirectionProvider` / `useDirection()` for RTL/LTR
-
-## Notes
-
-- Use `class` (not `className`) and DOM event names (`onclick`, …)
-- Icons: Lucide icon nodes via `<Icon icon={Loader2} />` from `sinwan-ui`
-- Toasts: `toast.success("Saved")` + `<Toaster />`
-- No React / Radix — all primitives are Sinwan-native
-
-## Scripts
+## Development
 
 ```bash
 bun run typecheck
-bun run test
-bun run build
+bun run test       # 100% line and function coverage required
+bun run build      # dist/cli.js: one file, runtime built-ins only
 ```
+
+Build the local registry with this CLI from `sinwan-ui-registry` (`bun run registry:build`), then try it with
+`bunx sinwan-ui add button --registry ../sinwan-ui-registry/public/r`.
